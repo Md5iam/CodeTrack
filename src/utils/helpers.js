@@ -146,9 +146,9 @@ export function calculateDashboardStats(userInfo, ratingHistory = [], processedS
   let needUpsolvingContests = 0;
 
   Object.values(userContestData).forEach(data => {
-    if (data.status === 'Completed') {
+    if (data.status === 'Done') {
       completedContests++;
-    } else if (data.status === 'Need to Upsolve' || data.status === 'Upsolving') {
+    } else if (data.status === 'Partial Done' || data.status === 'Not Done') {
       needUpsolvingContests++;
     }
   });

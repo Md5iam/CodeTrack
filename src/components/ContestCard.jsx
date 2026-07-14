@@ -2,12 +2,7 @@ import React, { useState, useEffect, useRef } from 'react';
 import { 
   ExternalLink, 
   Star, 
-  CheckSquare, 
-  Clock, 
   Notebook, 
-  Activity, 
-  CheckCircle,
-  HelpCircle,
   Save
 } from 'lucide-react';
 import { formatUnixDate, getContestDivision } from '../utils/helpers';
@@ -22,10 +17,12 @@ export default function ContestCard({
 }) {
   const { id, name, startTimeSeconds, durationSeconds, phase } = contest;
   
-  // Local states for note editing
+  // Local states for note editing and accordion expansion
   const [note, setNote] = useState(userData.note || '');
   const [isSaved, setIsSaved] = useState(false);
   const [isEditingNote, setIsEditingNote] = useState(false);
+  const [isExpanded, setIsExpanded] = useState(false);
+  
   const saveTimeoutRef = useRef(null);
 
   // Sync note from props when it changes externally
@@ -59,27 +56,45 @@ export default function ContestCard({
     setTimeout(() => setIsSaved(false), 2000);
   };
 
-  // Extract statistics
-  const participation = submissionData.participation || 'NONE';
-  const solvedDuring = submissionData.solvedDuring || 0;
-  const solvedAfter = submissionData.solvedAfter || 0;
-  const totalSolved = submissionData.totalSolved || 0;
-  const totalAttempted = submissionData.totalAttempted || 0;
+  // Toggle card expansion (show/hide notes) unless clicking interactive elements
+  const handleCardClick = (e) => {
+    const tag = e.target.tagName.toLowerCase();
+    if (
+      tag === 'select' || 
+      tag === 'option' || 
+      tag === 'button' || 
+      tag === 'a' || 
+      tag === 'textarea' || 
+      e.target.closest('button') || 
+      e.target.closest('a')
+    ) {
+      return;
+    }
+    setIsExpanded(!isExpanded);
+  };
 
   const division = getContestDivision(name);
 
   // Status lists
   const STATUS_OPTIONS = [
     'None',
-    'Plan to Attend',
-    'Attended',
-    'Need to Upsolve',
-    'Upsolving',
-    'Completed',
-    'Favourite',
-    'Skipped'
+    'Done',
+    'Partial Done',
+    'Not Done'
   ];
 
+  // Helper to resolve problem indices based on division
+  const getProblemIndices = (div) => {
+    if (div === 'Div. 4') return ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+    if (div === 'Div. 3') return ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+    return ['A', 'B', 'C', 'D', 'E', 'F'];
+  };
+
+  const problemIndices = getProblemIndices(division);
+  const solvedProblems = submissionData.solvedProblems || [];
+  const attemptedProblems = submissionData.attemptedProblems || [];
+
+  // Track state is active if any user activity exists
   const isTracked = 
     (userData.status && userData.status !== 'None' && userData.status !== '') ||
     (userData.note && userData.note.trim() !== '') ||
@@ -87,8 +102,12 @@ export default function ContestCard({
     (submissionData.totalAttempted && submissionData.totalAttempted > 0);
 
   return (
-    <div className={`glass-card animate-fade-in ${userData.favourite ? 'favourite-card' : ''} ${isTracked ? 'tracked-card' : ''}`} style={styles.card}>
-      {/* Card Header: Title and Favourite Icon */}
+    <div 
+      className={`glass-card animate-fade-in ${userData.favourite ? 'favourite-card' : ''} ${isTracked ? 'tracked-card' : ''}`} 
+      style={{ ...styles.card, cursor: 'pointer' }}
+      onClick={handleCardClick}
+    >
+      {/* Card Header: Title & Star Button */}
       <div style={styles.cardHeader}>
         <div style={styles.titleSection}>
           <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '8px' }}>
@@ -96,12 +115,12 @@ export default function ContestCard({
               {division}
             </span>
             {phase === 'BEFORE' && (
-              <span className="badge" style={{ ...styles.divBadge, backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+              <span className="badge" style={{ ...styles.divBadge, backgroundColor: 'rgba(251, 191, 36, 0.12)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.22)' }}>
                 Upcoming
               </span>
             )}
             {phase === 'CODING' && (
-              <span className="badge" style={{ ...styles.divBadge, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+              <span className="badge" style={{ ...styles.divBadge, backgroundColor: 'rgba(248, 113, 113, 0.12)', color: '#f87171', border: '1px solid rgba(248, 113, 113, 0.22)' }}>
                 Live
               </span>
             )}
@@ -126,7 +145,6 @@ export default function ContestCard({
           </div>
         </div>
         
-        {/* Star Button */}
         <button 
           onClick={() => onFavouriteToggle(id)} 
           style={{ 
@@ -139,105 +157,84 @@ export default function ContestCard({
         </button>
       </div>
 
-      {/* Card Body Grid: Solved Stats & Controls */}
-      <div className="contest-card-body-grid">
-        
-        {/* API Statistics Column */}
-        <div style={styles.statsColumn}>
-          <div style={styles.statsSectionHeader}>
-            <Activity size={14} color="var(--primary)" />
-            <span style={styles.sectionHeaderTitle}>Activity & Submissions</span>
-          </div>
+      {/* Middle row: Problems row & Track status selector */}
+      <div style={styles.middleRow}>
+        <div style={styles.problemsListContainer}>
+          {problemIndices.map(idx => {
+            const isSolved = solvedProblems.includes(idx) || 
+                             solvedProblems.some(p => p.toUpperCase() === idx.toUpperCase());
+            const isAttempted = attemptedProblems.includes(idx) || 
+                                attemptedProblems.some(p => p.toUpperCase().startsWith(idx.toUpperCase()));
+            
+            let badgeClass = "problem-badge problem-badge-default";
+            let title = `Problem ${idx} (Not Tried)`;
+            if (isSolved) {
+              badgeClass = "problem-badge problem-badge-solved";
+              title = `Problem ${idx} (Solved)`;
+            } else if (isAttempted) {
+              badgeClass = "problem-badge problem-badge-attempted";
+              title = `Problem ${idx} (Attempted but not solved)`;
+            }
 
-          <div style={styles.participationContainer}>
-            <span style={styles.statsLabel}>Your Participation:</span>
-            <span className={`badge ${getParticipationBadgeClass(participation)}`}>
-              {participation === 'NONE' ? 'Unattempted' : participation}
-            </span>
-          </div>
-
-          {totalAttempted > 0 ? (
-            <div style={styles.solvedStatsGrid}>
-              <div style={styles.solvedStatItem}>
-                <span style={styles.statSubVal}>{solvedDuring}</span>
-                <span style={styles.statSubLabel}>Solved During</span>
-              </div>
-              <div style={styles.solvedStatItem}>
-                <span style={styles.statSubVal}>{solvedAfter}</span>
-                <span style={styles.statSubLabel}>Solved After</span>
-              </div>
-              <div style={styles.solvedStatItem}>
-                <span style={{ ...styles.statSubVal, color: 'var(--success)' }}>{totalSolved} / {totalAttempted}</span>
-                <span style={styles.statSubLabel}>Total Solved/Attempted</span>
-              </div>
-            </div>
-          ) : (
-            <div style={styles.noSubmissions}>
-              <HelpCircle size={16} color="var(--color-text-muted)" />
-              <span>No submissions found for this round.</span>
-            </div>
-          )}
+            return (
+              <a 
+                key={idx}
+                href={phase === 'BEFORE' ? 'https://codeforces.com/contests' : `https://codeforces.com/contest/${id}/problem/${idx}`}
+                target="_blank"
+                rel="noopener noreferrer"
+                className={badgeClass}
+                title={title}
+              >
+                {idx}
+              </a>
+            );
+          })}
         </div>
 
-        {/* User Interactive States Column */}
-        <div style={styles.controlsColumn}>
-          <div style={styles.statsSectionHeader}>
-            <CheckSquare size={14} color="var(--info)" />
-            <span style={styles.sectionHeaderTitle}>Track Status</span>
-          </div>
-
-          <div className="form-group" style={{ marginBottom: 0 }}>
-            <select 
-              className="form-control form-select"
-              style={styles.statusSelect}
-              value={userData.status || 'None'}
-              onChange={(e) => onStatusChange(id, e.target.value === 'None' ? '' : e.target.value)}
-            >
-              {STATUS_OPTIONS.map(opt => (
-                <option key={opt} value={opt}>{opt}</option>
-              ))}
-            </select>
-          </div>
-
-          {/* Quick badge representation of status */}
-          {userData.status && (
-            <div style={{ marginTop: '8px' }}>
-              <span className={`badge ${getStatusBadgeClass(userData.status)}`}>
-                {userData.status}
-              </span>
-            </div>
-          )}
+        <div style={styles.statusContainer}>
+          <select 
+            className="form-control form-select"
+            style={styles.statusSelect}
+            value={userData.status || 'None'}
+            onChange={(e) => onStatusChange(id, e.target.value === 'None' ? '' : e.target.value)}
+          >
+            {STATUS_OPTIONS.map(opt => (
+              <option key={opt} value={opt}>{opt}</option>
+            ))}
+          </select>
         </div>
       </div>
 
-      {/* Personal Notes Row */}
-      <div style={styles.notesRow}>
-        <div style={styles.notesHeader}>
-          <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            <Notebook size={14} color="var(--color-text-secondary)" />
-            <span style={styles.notesTitle}>Personal Notes</span>
+      {/* Accordion Expandable Notes Row */}
+      {isExpanded && (
+        <div style={styles.notesRow}>
+          <div style={styles.notesHeader}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <Notebook size={14} color="var(--color-text-secondary)" />
+              <span style={styles.notesTitle}>Personal Notes</span>
+            </div>
+            <div style={styles.saveStatus}>
+              {isSaved && <span style={styles.savedBadge}>Saved</span>}
+              <button 
+                onClick={handleManualSave} 
+                style={styles.saveIconBtn} 
+                title="Save Note Now"
+              >
+                <Save size={12} />
+              </button>
+            </div>
           </div>
-          <div style={styles.saveStatus}>
-            {isSaved && <span style={styles.savedBadge}>Saved</span>}
-            <button 
-              onClick={handleManualSave} 
-              style={styles.saveIconBtn} 
-              title="Save Note Now"
-            >
-              <Save size={12} />
-            </button>
-          </div>
+          <textarea
+            style={styles.notesTextarea}
+            placeholder="e.g. Upsolved problem C, need to implement segment tree. Loved problem B!"
+            value={note}
+            onChange={handleNoteChange}
+            onFocus={() => setIsEditingNote(true)}
+            onBlur={() => setIsEditingNote(false)}
+            rows={2}
+          />
         </div>
-        <textarea
-          style={styles.notesTextarea}
-          placeholder="e.g. Upsolved problem C, need to implement segment tree. Loved problem B!"
-          value={note}
-          onChange={handleNoteChange}
-          onFocus={() => setIsEditingNote(true)}
-          onBlur={() => setIsEditingNote(false)}
-          rows={2}
-        />
-      </div>
+      )}
     </div>
   );
 }
@@ -251,28 +248,6 @@ function getDivisionBadgeClass(division) {
     case 'Div. 4': return 'badge-success';
     case 'Educational': return 'badge-info';
     case 'Global Round': return 'badge-primary';
-    default: return 'badge-neutral';
-  }
-}
-
-function getParticipationBadgeClass(participation) {
-  switch (participation) {
-    case 'OFFICIAL': return 'badge-success';
-    case 'VIRTUAL': return 'badge-info';
-    case 'PRACTICE': return 'badge-warning';
-    default: return 'badge-neutral';
-  }
-}
-
-function getStatusBadgeClass(status) {
-  switch (status) {
-    case 'Plan to Attend': return 'badge-info';
-    case 'Attended': return 'badge-primary';
-    case 'Need to Upsolve': return 'badge-danger';
-    case 'Upsolving': return 'badge-warning';
-    case 'Completed': return 'badge-success';
-    case 'Skipped': return 'badge-neutral';
-    case 'Favourite': return 'badge-danger';
     default: return 'badge-neutral';
   }
 }
@@ -294,7 +269,6 @@ const styles = {
     padding: '20px',
     textAlign: 'left',
     position: 'relative',
-    height: '100%',
   },
   cardHeader: {
     display: 'flex',
@@ -358,78 +332,25 @@ const styles = {
     justifyContent: 'center',
     transition: 'all var(--transition-fast)',
     outline: 'none',
-    ':hover': {
-      transform: 'scale(1.1)',
-    }
   },
-
-  statsColumn: {
+  middleRow: {
     display: 'flex',
-    flexDirection: 'column',
-    gap: '10px',
-  },
-  statsSectionHeader: {
-    display: 'flex',
+    justifyContent: 'space-between',
     alignItems: 'center',
+    gap: '16px',
+    borderTop: '1px solid var(--border-color)',
+    paddingTop: '14px',
+    marginTop: 'auto',
+    flexWrap: 'wrap',
+  },
+  problemsListContainer: {
+    display: 'flex',
     gap: '6px',
-    marginBottom: '4px',
+    flexWrap: 'wrap',
+    flex: 1,
   },
-  sectionHeaderTitle: {
-    fontSize: '0.75rem',
-    fontWeight: '600',
-    color: 'var(--color-text-muted)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-  },
-  participationContainer: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-    fontSize: '0.8rem',
-  },
-  statsLabel: {
-    color: 'var(--color-text-secondary)',
-  },
-  solvedStatsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(3, 1fr)',
-    gap: '8px',
-    background: 'rgba(255, 255, 255, 0.02)',
-    padding: '8px',
-    borderRadius: '8px',
-    border: '1px solid var(--border-color)',
-  },
-  solvedStatItem: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'center',
-    textAlign: 'center',
-  },
-  statSubVal: {
-    fontSize: '0.9rem',
-    fontWeight: '700',
-    color: 'var(--color-text-primary)',
-  },
-  statSubLabel: {
-    fontSize: '0.62rem',
-    color: 'var(--color-text-muted)',
-    marginTop: '2px',
-  },
-  noSubmissions: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '6px',
-    fontSize: '0.78rem',
-    color: 'var(--color-text-muted)',
-    background: 'rgba(255, 255, 255, 0.01)',
-    padding: '8px 12px',
-    borderRadius: '8px',
-    border: '1px dashed var(--border-color)',
-  },
-  controlsColumn: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
+  statusContainer: {
+    minWidth: '130px',
   },
   statusSelect: {
     padding: '8px 12px',
@@ -442,7 +363,7 @@ const styles = {
     gap: '6px',
     borderTop: '1px solid var(--border-color)',
     paddingTop: '14px',
-    marginTop: 'auto',
+    marginTop: '4px',
   },
   notesHeader: {
     display: 'flex',
@@ -476,9 +397,6 @@ const styles = {
     justifyContent: 'center',
     borderRadius: '4px',
     transition: 'color var(--transition-fast)',
-    ':hover': {
-      color: 'var(--color-text-primary)',
-    }
   },
   notesTextarea: {
     width: '100%',
@@ -492,8 +410,5 @@ const styles = {
     resize: 'vertical',
     outline: 'none',
     transition: 'border-color var(--transition-fast)',
-    ':focus': {
-      borderColor: 'var(--primary)',
-    }
   }
 };

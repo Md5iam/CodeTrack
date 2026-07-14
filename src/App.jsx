@@ -63,8 +63,6 @@ function App() {
   const [filterState, setFilterState] = useState({
     searchTerm: '',
     division: 'All',
-    year: 'All',
-    participation: 'All',
     userStatus: 'All',
     solvedRange: 'All',
     untriedProblems: ''

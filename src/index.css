@@ -539,3 +539,67 @@ body.light-theme ::-webkit-scrollbar-thumb {
 body.light-theme ::-webkit-scrollbar-thumb:hover {
   background: rgba(15, 23, 42, 0.20);
 }
+
+/* Problem Badges */
+.problem-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  border-radius: 6px;
+  font-size: 0.8rem;
+  font-weight: 700;
+  cursor: pointer;
+  transition: all var(--transition-fast);
+  text-decoration: none;
+  text-align: center;
+  line-height: 26px;
+}
+.problem-badge-default {
+  background: rgba(148, 163, 184, 0.08);
+  color: var(--color-text-secondary);
+  border: 1px solid var(--border-color);
+}
+.problem-badge-default:hover {
+  background: rgba(148, 163, 184, 0.16);
+  color: var(--color-text-primary);
+  border-color: var(--border-hover);
+}
+.problem-badge-solved {
+  background: rgba(52, 211, 153, 0.12);
+  color: #34d399;
+  border: 1px solid rgba(52, 211, 153, 0.30);
+}
+.problem-badge-solved:hover {
+  background: rgba(52, 211, 153, 0.22);
+  box-shadow: 0 0 10px rgba(52, 211, 153, 0.20);
+}
+.problem-badge-attempted {
+  background: rgba(248, 113, 113, 0.12);
+  color: #f87171;
+  border: 1px solid rgba(248, 113, 113, 0.30);
+}
+.problem-badge-attempted:hover {
+  background: rgba(248, 113, 113, 0.22);
+  box-shadow: 0 0 10px rgba(248, 113, 113, 0.20);
+}
+
+/* Light Theme Problem Badges Adjustments */
+body.light-theme .problem-badge-solved {
+  background: rgba(16, 185, 129, 0.08);
+  color: #059669;
+  border-color: rgba(16, 185, 129, 0.25);
+}
+body.light-theme .problem-badge-solved:hover {
+  background: rgba(16, 185, 129, 0.16);
+}
+body.light-theme .problem-badge-attempted {
+  background: rgba(239, 68, 68, 0.08);
+  color: #dc2626;
+  border-color: rgba(239, 68, 68, 0.25);
+}
+body.light-theme .problem-badge-attempted:hover {
+  background: rgba(239, 68, 68, 0.16);
+}
+

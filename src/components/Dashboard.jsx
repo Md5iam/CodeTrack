@@ -51,15 +51,13 @@ export default function Dashboard({
     progressPercent = Math.min(100, Math.max(0, Math.round((progress / range) * 100)));
   }
 
-  // Action: filter contests by status "Need to Upsolve" or "Upsolving"
+  // Action: filter contests by status "Not Done"
   const handleViewUpsolve = () => {
     setFilterState(prev => ({
       ...prev,
-      userStatus: 'Need to Upsolve',
+      userStatus: 'Not Done',
       searchTerm: '',
       division: 'All',
-      year: 'All',
-      participation: 'All',
       untriedProblems: ''
     }));
     onNavigateToContests();
@@ -68,11 +66,9 @@ export default function Dashboard({
   const handleViewCompleted = () => {
     setFilterState(prev => ({
       ...prev,
-      userStatus: 'Completed',
+      userStatus: 'Done',
       searchTerm: '',
       division: 'All',
-      year: 'All',
-      participation: 'All',
       untriedProblems: ''
     }));
     onNavigateToContests();
