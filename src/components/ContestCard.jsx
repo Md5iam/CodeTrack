@@ -80,7 +80,11 @@ export default function ContestCard({
     'Skipped'
   ];
 
-  const isTracked = userData.status && userData.status !== '';
+  const isTracked = 
+    (userData.status && userData.status !== 'None' && userData.status !== '') ||
+    (userData.note && userData.note.trim() !== '') ||
+    userData.favourite ||
+    (submissionData.totalAttempted && submissionData.totalAttempted > 0);
 
   return (
     <div className={`glass-card animate-fade-in ${userData.favourite ? 'favourite-card' : ''} ${isTracked ? 'tracked-card' : ''}`} style={styles.card}>
