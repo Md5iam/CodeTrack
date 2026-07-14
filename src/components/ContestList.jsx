@@ -115,6 +115,8 @@ export default function ContestList({
       }
 
       // Untried specific problem index filter (e.g. C, D)
+      // Enforces a strict AND condition: BOTH C and D must be completely untried.
+      // If the user has tried ANY of the specified indices (including sub-problems like C1, C2), the contest is filtered out.
       if (filterState.untriedProblems) {
         const targetIndices = filterState.untriedProblems
           .split(',')
@@ -122,8 +124,10 @@ export default function ContestList({
           .filter(Boolean);
 
         if (targetIndices.length > 0) {
-          const attempted = subData.attemptedProblems || [];
-          const hasTriedAny = targetIndices.some(idx => attempted.includes(idx));
+          const attempted = (subData.attemptedProblems || []).map(p => p.toUpperCase());
+          const hasTriedAny = targetIndices.some(targetIdx => 
+            attempted.some(attemptedIdx => attemptedIdx.startsWith(targetIdx) || attemptedIdx === targetIdx)
+          );
           if (hasTriedAny) return false;
         }
       }
