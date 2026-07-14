@@ -211,51 +211,6 @@ function App() {
     setErrorMsg('');
   };
 
-  const handleExportData = () => {
-    const data = {
-      handle: handle,
-      contestUserData: getContestUserData()
-    };
-    const blob = new Blob([JSON.stringify(data, null, 2)], { type: 'application/json' });
-    const url = URL.createObjectURL(blob);
-    const a = document.createElement('a');
-    a.href = url;
-    a.download = `codetrack-backup-${handle || 'demo'}-${new Date().toISOString().split('T')[0]}.json`;
-    document.body.appendChild(a);
-    a.click();
-    document.body.removeChild(a);
-    URL.revokeObjectURL(url);
-  };
-
-  const handleImportData = (importedJsonString) => {
-    try {
-      const data = JSON.parse(importedJsonString);
-      if (!data || typeof data !== 'object') {
-        throw new Error('Invalid backup file format');
-      }
-      
-      if (data.handle) {
-        saveHandle(data.handle);
-        setHandle(data.handle);
-      }
-      
-      if (data.contestUserData && typeof data.contestUserData === 'object') {
-        const mergedData = { ...getContestUserData(), ...data.contestUserData };
-        saveContestUserData(mergedData);
-        setUserContestData(mergedData);
-      }
-      
-      if (data.handle && data.handle !== 'demo') {
-        loadProfileData(data.handle);
-      } else if (data.handle === 'demo') {
-        loadMockData();
-      }
-      alert('Data imported successfully!');
-    } catch (err) {
-      console.error(err);
-      alert(`Failed to import data: ${err.message}`);
-    }
-  };
 
   // State update functions for custom manual statuses
   const handleStatusChange = (contestId, newStatus) => {
@@ -371,8 +326,6 @@ function App() {
         isMockData={isMockData}
         onRefreshData={handleRefreshData}
         isRefreshing={isRefreshing}
-        onExportData={handleExportData}
-        onImportData={handleImportData}
         isCloudActive={isCloudActive}
         onOpenCloudSettings={() => setIsCloudModalOpen(true)}
       />

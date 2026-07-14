@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, List, LogOut, Award, RefreshCw, Download, Upload, Database } from 'lucide-react';
+import { LayoutDashboard, List, LogOut, Award, RefreshCw, Database } from 'lucide-react';
 import { getRankColorClass } from '../utils/helpers';
 
 export default function Navbar({ 
@@ -11,8 +11,6 @@ export default function Navbar({
   isMockData, 
   onRefreshData,
   isRefreshing,
-  onExportData,
-  onImportData,
   isCloudActive,
   onOpenCloudSettings
 }) {
@@ -100,40 +98,6 @@ export default function Navbar({
             >
               <Database size={16} />
             </button>
-
-            <button 
-
-              className="btn btn-secondary" 
-              style={styles.iconBtn} 
-              title="Export Backup JSON"
-              onClick={onExportData}
-            >
-              <Download size={16} />
-            </button>
-
-            <button 
-              className="btn btn-secondary" 
-              style={styles.iconBtn} 
-              title="Import Backup JSON"
-              onClick={() => document.getElementById('cf-import-file').click()}
-            >
-              <Upload size={16} />
-            </button>
-            <input 
-              type="file" 
-              id="cf-import-file" 
-              accept=".json" 
-              style={{ display: 'none' }} 
-              onChange={(e) => {
-                const file = e.target.files[0];
-                if (file) {
-                  const reader = new FileReader();
-                  reader.onload = (event) => onImportData(event.target.result);
-                  reader.readAsText(file);
-                }
-                e.target.value = '';
-              }}
-            />
 
             <button 
               className="btn btn-danger" 
