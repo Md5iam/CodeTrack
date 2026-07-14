@@ -386,16 +386,17 @@ h1, h2, h3, h4, h5, h6 {
   }
 }
 
-/* Tracked Card — Soft teal/emerald accent */
+/* Tracked Card — Bold emerald accent */
 .tracked-card {
-  border-color: rgba(52, 211, 153, 0.22) !important;
-  background: rgba(52, 211, 153, 0.03) !important;
-  box-shadow: 0 0 20px rgba(52, 211, 153, 0.04), inset 0 1px 0 rgba(52, 211, 153, 0.06) !important;
+  border-color: rgba(52, 211, 153, 0.45) !important;
+  background: rgba(52, 211, 153, 0.10) !important;
+  box-shadow: 0 0 24px rgba(52, 211, 153, 0.12), inset 0 1px 0 rgba(52, 211, 153, 0.15) !important;
 }
 
 .tracked-card:hover {
-  border-color: rgba(52, 211, 153, 0.38) !important;
-  background: rgba(52, 211, 153, 0.06) !important;
+  border-color: rgba(52, 211, 153, 0.65) !important;
+  background: rgba(52, 211, 153, 0.15) !important;
+  box-shadow: 0 0 30px rgba(52, 211, 153, 0.18) !important;
 }
 
 /* ═══════════════════════════════════════
@@ -512,14 +513,14 @@ body.light-theme .form-select {
 }
 
 body.light-theme .tracked-card {
-  border-color: rgba(16, 185, 129, 0.18) !important;
-  background: rgba(16, 185, 129, 0.03) !important;
-  box-shadow: 0 0 16px rgba(16, 185, 129, 0.04), inset 0 1px 0 rgba(16, 185, 129, 0.05) !important;
+  border-color: rgba(16, 185, 129, 0.40) !important;
+  background: rgba(16, 185, 129, 0.08) !important;
+  box-shadow: 0 0 20px rgba(16, 185, 129, 0.10), inset 0 1px 0 rgba(16, 185, 129, 0.12) !important;
 }
 
 body.light-theme .tracked-card:hover {
-  border-color: rgba(16, 185, 129, 0.32) !important;
-  background: rgba(16, 185, 129, 0.05) !important;
+  border-color: rgba(16, 185, 129, 0.55) !important;
+  background: rgba(16, 185, 129, 0.12) !important;
 }
 
 body.light-theme .btn-danger {
