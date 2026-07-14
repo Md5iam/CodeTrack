@@ -387,7 +387,7 @@ const styles = {
     color: 'var(--color-text-secondary)',
   },
   milestoneVal: {
-    color: '#fff',
+    color: 'var(--color-text-primary)',
     fontWeight: '600',
   },
   progressBarBg: {
@@ -460,7 +460,7 @@ const styles = {
   mediumValue: {
     fontSize: '1.8rem',
     fontWeight: '700',
-    color: '#fff',
+    color: 'var(--color-text-primary)',
     lineHeight: 1,
   },
   subLabel: {
@@ -514,7 +514,7 @@ const styles = {
     padding: '12px',
     fontSize: '0.9rem',
     fontWeight: '600',
-    color: '#fff',
+    color: 'var(--color-text-primary)',
   },
   recentSection: {
     textAlign: 'left',

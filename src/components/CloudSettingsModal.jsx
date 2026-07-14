@@ -296,7 +296,7 @@ const styles = {
   connectedLabel: {
     fontSize: '0.9rem',
     fontWeight: '700',
-    color: '#fff',
+    color: 'var(--color-text-primary)',
   },
   connectedUrl: {
     fontSize: '0.78rem',
@@ -400,7 +400,7 @@ const styles = {
     margin: 0,
     fontSize: '0.72rem',
     fontFamily: 'var(--font-mono)',
-    color: '#818cf8',
+    color: 'var(--primary)',
     overflowX: 'auto',
     maxHeight: '120px',
   },

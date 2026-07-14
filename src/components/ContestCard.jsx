@@ -408,7 +408,7 @@ const styles = {
   statSubVal: {
     fontSize: '0.9rem',
     fontWeight: '700',
-    color: '#fff',
+    color: 'var(--color-text-primary)',
   },
   statSubLabel: {
     fontSize: '0.62rem',
@@ -477,7 +477,7 @@ const styles = {
     borderRadius: '4px',
     transition: 'color var(--transition-fast)',
     ':hover': {
-      color: '#fff',
+      color: 'var(--color-text-primary)',
     }
   },
   notesTextarea: {
