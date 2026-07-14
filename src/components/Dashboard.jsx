@@ -55,11 +55,12 @@ export default function Dashboard({
   const handleViewUpsolve = () => {
     setFilterState(prev => ({
       ...prev,
-      userStatus: 'Need to Upsolve', // or show all needing upsolve
+      userStatus: 'Need to Upsolve',
       searchTerm: '',
       division: 'All',
       year: 'All',
-      participation: 'All'
+      participation: 'All',
+      untriedProblems: ''
     }));
     onNavigateToContests();
   };
@@ -71,7 +72,8 @@ export default function Dashboard({
       searchTerm: '',
       division: 'All',
       year: 'All',
-      participation: 'All'
+      participation: 'All',
+      untriedProblems: ''
     }));
     onNavigateToContests();
   };

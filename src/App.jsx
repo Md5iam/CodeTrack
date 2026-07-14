@@ -56,6 +56,9 @@ function App() {
   const [isCloudActive, setIsCloudActive] = useState(isSupabaseConfigured());
   const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
 
+  // Theme state
+  const [theme, setTheme] = useState(localStorage.getItem('cf_theme') || 'dark');
+
   // Persist filter state across tabs
   const [filterState, setFilterState] = useState({
     searchTerm: '',
@@ -63,7 +66,8 @@ function App() {
     year: 'All',
     participation: 'All',
     userStatus: 'All',
-    solvedRange: 'All'
+    solvedRange: 'All',
+    untriedProblems: ''
   });
 
   // Load initial handle and local storage data
@@ -83,6 +87,20 @@ function App() {
       setIsLoading(false);
     }
   }, []);
+
+  // Sync theme with body class and local storage
+  useEffect(() => {
+    if (theme === 'light') {
+      document.body.classList.add('light-theme');
+    } else {
+      document.body.classList.remove('light-theme');
+    }
+    localStorage.setItem('cf_theme', theme);
+  }, [theme]);
+
+  const handleToggleTheme = () => {
+    setTheme(prev => prev === 'dark' ? 'light' : 'dark');
+  };
 
   // Sync cloud database states
   const handleCloudConfigChange = () => {
@@ -328,6 +346,8 @@ function App() {
         isRefreshing={isRefreshing}
         isCloudActive={isCloudActive}
         onOpenCloudSettings={() => setIsCloudModalOpen(true)}
+        theme={theme}
+        onToggleTheme={handleToggleTheme}
       />
 
       <main style={styles.mainContent}>

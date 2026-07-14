@@ -80,8 +80,10 @@ export default function ContestCard({
     'Skipped'
   ];
 
+  const isTracked = userData.status && userData.status !== '';
+
   return (
-    <div className={`glass-card animate-fade-in ${userData.favourite ? 'favourite-card' : ''}`} style={styles.card}>
+    <div className={`glass-card animate-fade-in ${userData.favourite ? 'favourite-card' : ''} ${isTracked ? 'tracked-card' : ''}`} style={styles.card}>
       {/* Card Header: Title and Favourite Icon */}
       <div style={styles.cardHeader}>
         <div style={styles.titleSection}>

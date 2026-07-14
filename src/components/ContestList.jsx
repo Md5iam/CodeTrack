@@ -114,6 +114,20 @@ export default function ContestList({
         if (filterState.solvedRange === '5+ Solved' && solved < 5) return false;
       }
 
+      // Untried specific problem index filter (e.g. C, D)
+      if (filterState.untriedProblems) {
+        const targetIndices = filterState.untriedProblems
+          .split(',')
+          .map(idx => idx.trim().toUpperCase())
+          .filter(Boolean);
+
+        if (targetIndices.length > 0) {
+          const attempted = subData.attemptedProblems || [];
+          const hasTriedAny = targetIndices.some(idx => attempted.includes(idx));
+          if (hasTriedAny) return false;
+        }
+      }
+ 
       return true;
     });
   }, [contests, userContestData, processedSubmissions, filterState]);
@@ -134,7 +148,8 @@ export default function ContestList({
       year: 'All',
       participation: 'All',
       userStatus: 'All',
-      solvedRange: 'All'
+      solvedRange: 'All',
+      untriedProblems: ''
     });
     setCurrentPage(1);
   };
@@ -240,6 +255,21 @@ export default function ContestList({
                 <option key={r} value={r}>{r}</option>
               ))}
             </select>
+          </div>
+
+          {/* Untried Problems Filter */}
+          <div className="form-group" style={styles.filterGroup}>
+            <label className="form-label">
+              <ClipboardList size={12} style={styles.labelIcon} /> Untried Problems
+            </label>
+            <input 
+              type="text"
+              placeholder="e.g. C, D, E"
+              className="form-control"
+              style={{ ...styles.statusSelect, paddingRight: '12px' }}
+              value={filterState.untriedProblems || ''}
+              onChange={(e) => handleFilterChange('untriedProblems', e.target.value)}
+            />
           </div>
         </div>
 

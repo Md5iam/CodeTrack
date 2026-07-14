@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, List, LogOut, Award, RefreshCw, Database } from 'lucide-react';
+import { LayoutDashboard, List, LogOut, Award, RefreshCw, Database, Sun, Moon } from 'lucide-react';
 import { getRankColorClass } from '../utils/helpers';
 
 export default function Navbar({ 
@@ -12,7 +12,9 @@ export default function Navbar({
   onRefreshData,
   isRefreshing,
   isCloudActive,
-  onOpenCloudSettings
+  onOpenCloudSettings,
+  theme,
+  onToggleTheme
 }) {
   const rankClass = userInfo ? getRankColorClass(userInfo.rank) : 'rank-unrated';
 
@@ -97,6 +99,15 @@ export default function Navbar({
               onClick={onOpenCloudSettings}
             >
               <Database size={16} />
+            </button>
+
+            <button 
+              className="btn btn-secondary" 
+              style={styles.iconBtn} 
+              title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
+              onClick={onToggleTheme}
+            >
+              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
             </button>
 
             <button 
