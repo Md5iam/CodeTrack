@@ -3,6 +3,7 @@ import Navbar from './components/Navbar';
 import ConnectHandle from './components/ConnectHandle';
 import Dashboard from './components/Dashboard';
 import ContestList from './components/ContestList';
+import CloudSettingsModal from './components/CloudSettingsModal';
 
 import { 
   fetchUserInfo, 
@@ -15,10 +16,16 @@ import {
   saveHandle, 
   removeHandle, 
   getContestUserData, 
+  saveContestUserData,
   updateContestStatus, 
   updateContestNote, 
   toggleContestFavourite 
 } from './services/storage';
+import { 
+  isSupabaseConfigured, 
+  fetchCloudContestData, 
+  upsertCloudContestData 
+} from './services/supabase';
 import { processContestSubmissions, calculateDashboardStats } from './utils/helpers';
 import { 
   MOCK_USER_INFO, 
@@ -44,6 +51,10 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Cloud Sync Database States
+  const [isCloudActive, setIsCloudActive] = useState(isSupabaseConfigured());
+  const [isCloudModalOpen, setIsCloudModalOpen] = useState(false);
 
   // Persist filter state across tabs
   const [filterState, setFilterState] = useState({
@@ -73,6 +84,28 @@ function App() {
     }
   }, []);
 
+  // Sync cloud database states
+  const handleCloudConfigChange = () => {
+    const active = isSupabaseConfigured();
+    setIsCloudActive(active);
+    if (active && handle && handle !== 'demo') {
+      syncCloudData(handle);
+    }
+  };
+
+  const syncCloudData = async (userHandle) => {
+    if (!userHandle || userHandle === 'demo') return;
+    try {
+      const cloudData = await fetchCloudContestData(userHandle);
+      const localData = getContestUserData();
+      const mergedData = { ...localData, ...cloudData };
+      saveContestUserData(mergedData);
+      setUserContestData(mergedData);
+    } catch (err) {
+      console.warn('Failed to fetch cloud database tracking data', err);
+    }
+  };
+
   // Fetch all profile details from Codeforces API
   const loadProfileData = async (userHandle) => {
     setIsLoading(true);
@@ -84,7 +117,7 @@ function App() {
       setIsMockData(false);
 
       // 2. Fetch rating history, submissions, and contest lists
-      const [history, subs, allContests] = await Promise.all([
+      const [history, subs, allContests, cloudData] = await Promise.all([
         fetchUserRating(userHandle).catch(err => {
           console.warn('Failed to load ratings, using empty', err);
           return [];
@@ -96,6 +129,11 @@ function App() {
         fetchContestList().catch(err => {
           console.warn('Failed to fetch fresh contests, attempting cached', err);
           return [];
+        }),
+        // Load cloud tracking data if connected
+        (isSupabaseConfigured() ? fetchCloudContestData(userHandle) : Promise.resolve(null)).catch(err => {
+          console.warn('Failed to load cloud tracking data, using local fallback', err);
+          return null;
         })
       ]);
 
@@ -104,10 +142,15 @@ function App() {
       setContests(allContests);
       setHandle(userHandle);
       saveHandle(userHandle);
+
+      if (cloudData) {
+        const mergedData = { ...getContestUserData(), ...cloudData };
+        saveContestUserData(mergedData);
+        setUserContestData(mergedData);
+      }
     } catch (err) {
       console.error(err);
       setErrorMsg(err.message || 'Failed to connect to Codeforces. Please verify your connection.');
-      // If error occurs and we already have a local profile, don't clear it immediately, just present error
     } finally {
       setIsLoading(false);
     }
@@ -218,16 +261,43 @@ function App() {
   const handleStatusChange = (contestId, newStatus) => {
     const updated = updateContestStatus(contestId, newStatus);
     setUserContestData(updated);
+
+    if (isCloudActive && handle !== 'demo') {
+      const cardData = updated[contestId] || {};
+      upsertCloudContestData(handle, contestId, {
+        status: newStatus,
+        note: cardData.note,
+        favourite: cardData.favourite
+      }).catch(err => console.warn('Failed to sync status to Cloud database', err));
+    }
   };
 
   const handleNoteChange = (contestId, newNote) => {
     const updated = updateContestNote(contestId, newNote);
     setUserContestData(updated);
+
+    if (isCloudActive && handle !== 'demo') {
+      const cardData = updated[contestId] || {};
+      upsertCloudContestData(handle, contestId, {
+        status: cardData.status,
+        note: newNote,
+        favourite: cardData.favourite
+      }).catch(err => console.warn('Failed to sync note to Cloud database', err));
+    }
   };
 
   const handleFavouriteToggle = (contestId) => {
     const updated = toggleContestFavourite(contestId);
     setUserContestData(updated);
+
+    if (isCloudActive && handle !== 'demo') {
+      const cardData = updated[contestId] || {};
+      upsertCloudContestData(handle, contestId, {
+        status: cardData.status,
+        note: cardData.note,
+        favourite: cardData.favourite
+      }).catch(err => console.warn('Failed to sync favourite to Cloud database', err));
+    }
   };
 
   // Calculate statistics from submission histories
@@ -303,6 +373,8 @@ function App() {
         isRefreshing={isRefreshing}
         onExportData={handleExportData}
         onImportData={handleImportData}
+        isCloudActive={isCloudActive}
+        onOpenCloudSettings={() => setIsCloudModalOpen(true)}
       />
 
       <main style={styles.mainContent}>
@@ -330,9 +402,15 @@ function App() {
       <footer style={styles.footer}>
         <div className="container" style={styles.footerContainer}>
           <p>© 2026 CodeTrack. Built using React, Vite, and the Codeforces Public API.</p>
-          <p style={styles.footerSub}>Saved offline to LocalStorage.</p>
+          <p style={styles.footerSub}>{isCloudActive ? 'Synced with Supabase Cloud Database.' : 'Saved offline to LocalStorage.'}</p>
         </div>
       </footer>
+
+      <CloudSettingsModal 
+        isOpen={isCloudModalOpen} 
+        onClose={() => setIsCloudModalOpen(false)} 
+        onConfigChange={handleCloudConfigChange} 
+      />
     </div>
   );
 }

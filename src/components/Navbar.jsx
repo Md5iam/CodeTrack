@@ -1,5 +1,5 @@
 import React from 'react';
-import { LayoutDashboard, List, LogOut, Award, RefreshCw, Download, Upload } from 'lucide-react';
+import { LayoutDashboard, List, LogOut, Award, RefreshCw, Download, Upload, Database } from 'lucide-react';
 import { getRankColorClass } from '../utils/helpers';
 
 export default function Navbar({ 
@@ -12,7 +12,9 @@ export default function Navbar({
   onRefreshData,
   isRefreshing,
   onExportData,
-  onImportData
+  onImportData,
+  isCloudActive,
+  onOpenCloudSettings
 }) {
   const rankClass = userInfo ? getRankColorClass(userInfo.rank) : 'rank-unrated';
 
@@ -86,6 +88,21 @@ export default function Navbar({
             </button>
 
             <button 
+              className="btn btn-secondary" 
+              style={{ 
+                ...styles.iconBtn, 
+                borderColor: isCloudActive ? 'rgba(16, 185, 129, 0.4)' : 'var(--border-color)',
+                color: isCloudActive ? 'var(--success)' : 'var(--color-text-secondary)',
+                background: isCloudActive ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255, 255, 255, 0.03)'
+              }} 
+              title={isCloudActive ? "Cloud Sync: Connected" : "Configure Cloud Sync"}
+              onClick={onOpenCloudSettings}
+            >
+              <Database size={16} />
+            </button>
+
+            <button 
+
               className="btn btn-secondary" 
               style={styles.iconBtn} 
               title="Export Backup JSON"
