@@ -20,7 +20,7 @@ export default function ContestCard({
   onNoteChange, 
   onFavouriteToggle 
 }) {
-  const { id, name, startTimeSeconds, durationSeconds } = contest;
+  const { id, name, startTimeSeconds, durationSeconds, phase } = contest;
   
   // Local states for note editing
   const [note, setNote] = useState(userData.note || '');
@@ -87,9 +87,21 @@ export default function ContestCard({
       {/* Card Header: Title and Favourite Icon */}
       <div style={styles.cardHeader}>
         <div style={styles.titleSection}>
-          <span className={`badge ${getDivisionBadgeClass(division)}`} style={styles.divBadge}>
-            {division}
-          </span>
+          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '8px' }}>
+            <span className={`badge ${getDivisionBadgeClass(division)}`} style={styles.divBadge}>
+              {division}
+            </span>
+            {phase === 'BEFORE' && (
+              <span className="badge" style={{ ...styles.divBadge, backgroundColor: 'rgba(245, 158, 11, 0.15)', color: '#f59e0b', border: '1px solid rgba(245, 158, 11, 0.3)' }}>
+                Upcoming
+              </span>
+            )}
+            {phase === 'CODING' && (
+              <span className="badge" style={{ ...styles.divBadge, backgroundColor: 'rgba(239, 68, 68, 0.15)', color: '#ef4444', border: '1px solid rgba(239, 68, 68, 0.3)' }}>
+                Live
+              </span>
+            )}
+          </div>
           <h3 style={styles.contestName} title={name}>
             {name}
           </h3>
@@ -302,13 +314,16 @@ const styles = {
   contestName: {
     fontSize: '1.05rem',
     fontWeight: '600',
-    margin: 0,
+    margin: '0 0 6px 0',
     lineHeight: 1.3,
-    color: '#fff',
-    whiteSpace: 'nowrap',
-    textOverflow: 'ellipsis',
+    color: 'var(--color-text-primary)',
+    display: '-webkit-box',
+    WebkitLineClamp: 2,
+    WebkitBoxOrient: 'vertical',
     overflow: 'hidden',
+    textOverflow: 'ellipsis',
     width: '100%',
+    minHeight: '2.6em',
   },
   dateAndLink: {
     display: 'flex',
