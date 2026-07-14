@@ -111,12 +111,12 @@ export default function ContestCard({
             <span style={styles.durationText}>{formatDuration(durationSeconds)}</span>
             <span style={styles.bullet}>•</span>
             <a 
-              href={`https://codeforces.com/contest/${id}`} 
+              href={phase === 'BEFORE' ? 'https://codeforces.com/contests' : `https://codeforces.com/contest/${id}`} 
               target="_blank" 
               rel="noopener noreferrer" 
               style={styles.cfLink}
             >
-              Open Codeforces
+              {phase === 'BEFORE' ? 'Register / View Schedule' : 'Open Codeforces'}
               <ExternalLink size={12} style={{ marginLeft: 3 }} />
             </a>
           </div>
