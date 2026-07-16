@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { LayoutDashboard, List, LogOut, Award, RefreshCw, Database, Sun, Moon } from 'lucide-react';
 import { getRankColorClass } from '../utils/helpers';
 
@@ -14,111 +14,185 @@ export default function Navbar({
   isCloudActive,
   onOpenCloudSettings,
   theme,
-  onToggleTheme
+  onToggleTheme,
+  platform,
+  onChangePlatform
 }) {
-  const rankClass = userInfo ? getRankColorClass(userInfo.rank) : 'rank-unrated';
+  const rankClass = userInfo 
+    ? (platform === 'codeforces' 
+        ? getRankColorClass(userInfo.rank) 
+        : platform === 'atcoder' 
+          ? `rank-at-${userInfo.rank.toLowerCase()}` 
+          : `rank-lc-${userInfo.rank.toLowerCase()}`) 
+    : 'rank-unrated';
+  const rankColor = userInfo 
+    ? `var(--rank-${
+        platform === 'codeforces' 
+          ? userInfo.rank.toLowerCase().replace(/ /g, '-') 
+          : platform === 'atcoder'
+            ? `at-${userInfo.rank.toLowerCase()}`
+            : `lc-${userInfo.rank.toLowerCase()}`
+      })` 
+    : 'var(--border-color)';
+
+  const [isDropdownOpen, setIsDropdownOpen] = useState(false);
+  const dropdownRef = useRef(null);
+
+  useEffect(() => {
+    function handleClickOutside(event) {
+      if (dropdownRef.current && !dropdownRef.current.contains(event.target)) {
+        setIsDropdownOpen(false);
+      }
+    }
+    document.addEventListener("mousedown", handleClickOutside);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+    };
+  }, []);
 
   return (
-    <header style={styles.header}>
-      <div className="container" style={styles.navContainer}>
+    <header style={{ ...styles.header, borderBottom: `1px solid ${rankColor}` }}>
+      <div className="navbar-container" style={styles.navContainer}>
         <div style={styles.logoSection} onClick={() => setActiveTab('dashboard')}>
-          <div style={styles.logoIcon}>CT</div>
+          <div style={styles.logoIcon}>
+            <svg viewBox="0 0 100 100" style={{ width: '100%', height: '100%', borderRadius: '10px' }}>
+              <rect x="2" y="2" width="96" height="96" rx="22" ry="22" fill="#0F172A" />
+              <rect x="23" y="65" width="11" height="17" fill="none" stroke="#0D9488" strokeWidth="5" />
+              <rect x="40" y="53" width="11" height="29" fill="none" stroke="#0D9488" strokeWidth="5" />
+              <rect x="57" y="37" width="11" height="45" fill="none" stroke="#0D9488" strokeWidth="5" />
+              <rect x="74" y="45" width="11" height="37" fill="none" stroke="#0D9488" strokeWidth="5" />
+            </svg>
+          </div>
           <div>
-            <h1 style={styles.logoText}>CodeTrack</h1>
-            <p style={styles.tagline}>Codeforces Contest Tracker</p>
+            <h1 style={styles.logoText}>
+              <span style={styles.logoCode}>Code</span><span style={styles.logoTrack}>Track</span>
+            </h1>
           </div>
         </div>
 
-        {handle && (
-          <nav style={styles.navTabs}>
-            <button 
-              className={`btn ${activeTab === 'dashboard' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ ...styles.tabBtn, ...styles.navBtnOverride }}
-              onClick={() => setActiveTab('dashboard')}
-            >
-              <LayoutDashboard size={18} />
-              Dashboard
-            </button>
-            <button 
-              className={`btn ${activeTab === 'contests' ? 'btn-primary' : 'btn-secondary'}`}
-              style={{ ...styles.tabBtn, ...styles.navBtnOverride }}
-              onClick={() => setActiveTab('contests')}
-            >
-              <List size={18} />
-              Contests
-            </button>
-          </nav>
-        )}
+        {/* Platform Selector Toggle */}
+        <div className="platform-toggle">
+          <button 
+            type="button"
+            className={`platform-btn platform-cf ${platform === 'codeforces' ? 'active' : ''}`}
+            onClick={() => onChangePlatform('codeforces')}
+          >
+            Codeforces
+          </button>
+          <button 
+            type="button"
+            className={`platform-btn platform-at ${platform === 'atcoder' ? 'active' : ''}`}
+            onClick={() => onChangePlatform('atcoder')}
+          >
+            AtCoder
+          </button>
+          <button 
+            type="button"
+            className={`platform-btn platform-lc ${platform === 'leetcode' ? 'active' : ''}`}
+            onClick={() => onChangePlatform('leetcode')}
+          >
+            LeetCode
+          </button>
+        </div>
 
         {handle && (
-          <div style={styles.userSection}>
-            {isMockData && (
-              <span className="badge badge-warning" style={styles.demoBadge}>
-                Demo Mode
-              </span>
-            )}
-            
-            <div style={styles.userInfoCard}>
-              <img 
-                src={userInfo?.avatar || 'https://userpic.codeforces.org/no-avatar.jpg'} 
-                alt={handle} 
-                style={styles.avatar} 
-              />
-              <div style={styles.userDetails}>
-                <span className={`rank-username ${rankClass}`} style={styles.handleText}>
-                  {handle}
+          <div style={styles.rightGroup}>
+            <nav style={styles.navTabs}>
+              <button 
+                className={`btn ${activeTab === 'dashboard' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ ...styles.tabBtn, ...styles.navBtnOverride }}
+                onClick={() => setActiveTab('dashboard')}
+              >
+                <LayoutDashboard size={18} />
+                Dashboard
+              </button>
+              <button 
+                className={`btn ${activeTab === 'contests' ? 'btn-primary' : 'btn-secondary'}`}
+                style={{ ...styles.tabBtn, ...styles.navBtnOverride }}
+                onClick={() => setActiveTab('contests')}
+              >
+                <List size={18} />
+                Contests
+              </button>
+            </nav>
+
+            <div style={styles.userSection}>
+              {isMockData && (
+                <span className="badge badge-warning" style={styles.demoBadge}>
+                  Demo Mode
                 </span>
-                {userInfo?.rating && (
-                  <span style={styles.ratingText}>
-                    <Award size={12} style={{ marginRight: 2, display: 'inline' }} />
-                    {userInfo.rating}
-                  </span>
+              )}
+              
+              <div ref={dropdownRef} style={{ position: 'relative' }}>
+                <div 
+                  style={{ ...styles.userInfoCard, cursor: 'pointer' }}
+                  onClick={() => setIsDropdownOpen(!isDropdownOpen)}
+                >
+                  <img 
+                    src={userInfo?.avatar || (platform === 'codeforces' ? 'https://userpic.codeforces.org/no-avatar.jpg' : platform === 'atcoder' ? 'https://img.atcoder.jp/assets/icon/avatar.png' : 'https://assets.leetcode.com/users/default_avatar.jpg')} 
+                    alt={handle} 
+                    style={{ ...styles.avatar, boxShadow: userInfo ? `0 0 0 2px ${rankColor}` : 'none' }} 
+                  />
+                  <div style={styles.userDetails}>
+                    <span className={`rank-username ${rankClass}`} style={styles.handleText}>
+                      {handle}
+                    </span>
+                    {userInfo?.rating && (
+                      <span style={styles.ratingText}>
+                        <Award size={12} style={{ marginRight: 2, display: 'inline' }} />
+                        {userInfo.rating}
+                      </span>
+                    )}
+                  </div>
+                </div>
+
+                {isDropdownOpen && (
+                  <div style={styles.dropdownMenu}>
+                    <button 
+                      className="btn btn-secondary" 
+                      style={styles.dropdownItem} 
+                      onClick={() => { onRefreshData(); setIsDropdownOpen(false); }}
+                      disabled={isRefreshing}
+                    >
+                      <RefreshCw size={14} className={isRefreshing ? 'animate-spin' : ''} />
+                      Refresh Profile
+                    </button>
+
+                    <button 
+                      className="btn btn-secondary" 
+                      style={{
+                        ...styles.dropdownItem,
+                        color: isCloudActive ? 'var(--success)' : 'var(--color-text-secondary)',
+                      }} 
+                      onClick={() => { onOpenCloudSettings(); setIsDropdownOpen(false); }}
+                    >
+                      <Database size={14} />
+                      Cloud Sync
+                    </button>
+
+                    <button 
+                      className="btn btn-secondary" 
+                      style={styles.dropdownItem} 
+                      onClick={() => { onToggleTheme(); setIsDropdownOpen(false); }}
+                    >
+                      {theme === 'dark' ? <Sun size={14} /> : <Moon size={14} />}
+                      {theme === 'dark' ? 'Light Mode' : 'Dark Mode'}
+                    </button>
+
+                    <div style={styles.dropdownDivider}></div>
+
+                    <button 
+                      className="btn btn-danger" 
+                      style={{ ...styles.dropdownItem, ...styles.dropdownItemDanger }}
+                      onClick={() => { onDisconnect(); setIsDropdownOpen(false); }}
+                    >
+                      <LogOut size={14} />
+                      Disconnect
+                    </button>
+                  </div>
                 )}
               </div>
             </div>
-
-            <button 
-              className="btn btn-secondary" 
-              style={styles.iconBtn} 
-              title="Refresh Data"
-              onClick={onRefreshData}
-              disabled={isRefreshing}
-            >
-              <RefreshCw size={16} className={isRefreshing ? 'animate-spin' : ''} />
-            </button>
-
-            <button 
-              className="btn btn-secondary" 
-              style={{ 
-                ...styles.iconBtn, 
-                borderColor: isCloudActive ? 'rgba(16, 185, 129, 0.4)' : 'var(--border-color)',
-                color: isCloudActive ? 'var(--success)' : 'var(--color-text-secondary)',
-                background: isCloudActive ? 'rgba(16, 185, 129, 0.05)' : 'rgba(255, 255, 255, 0.03)'
-              }} 
-              title={isCloudActive ? "Cloud Sync: Connected" : "Configure Cloud Sync"}
-              onClick={onOpenCloudSettings}
-            >
-              <Database size={16} />
-            </button>
-
-            <button 
-              className="btn btn-secondary" 
-              style={styles.iconBtn} 
-              title={theme === 'dark' ? "Switch to Light Mode" : "Switch to Dark Mode"}
-              onClick={onToggleTheme}
-            >
-              {theme === 'dark' ? <Sun size={16} /> : <Moon size={16} />}
-            </button>
-
-            <button 
-              className="btn btn-danger" 
-              style={styles.disconnectBtn}
-              onClick={onDisconnect}
-              title="Disconnect Handle"
-            >
-              <LogOut size={16} />
-              <span className="nav-disconnect-text">Disconnect</span>
-            </button>
           </div>
         )}
       </div>
@@ -142,7 +216,8 @@ const styles = {
     alignItems: 'center',
     justifyContent: 'space-between',
     flexWrap: 'wrap',
-    gap: '16px',
+    gap: '32px',
+    padding: '0 24px',
   },
   logoSection: {
     display: 'flex',
@@ -151,32 +226,32 @@ const styles = {
     cursor: 'pointer',
   },
   logoIcon: {
-    background: 'linear-gradient(135deg, var(--primary), var(--info))',
-    color: '#fff',
-    fontFamily: 'var(--font-sans)',
-    fontWeight: '800',
-    fontSize: '1.2rem',
     width: '40px',
     height: '40px',
-    borderRadius: '10px',
     display: 'flex',
     alignItems: 'center',
     justifyContent: 'center',
-    boxShadow: 'var(--shadow-glow)',
+    boxShadow: '0 0 15px rgba(13, 148, 136, 0.3)',
   },
   logoText: {
     fontSize: '1.4rem',
-    fontWeight: '700',
+    fontWeight: '600',
+    fontFamily: `'Inter', sans-serif`,
     margin: 0,
     lineHeight: 1.1,
-    background: 'linear-gradient(90deg, #fff, var(--color-text-secondary))',
-    WebkitBackgroundClip: 'text',
-    WebkitTextFillColor: 'transparent',
+    letterSpacing: '-0.01em',
   },
-  tagline: {
-    fontSize: '0.75rem',
-    color: 'var(--color-text-muted)',
-    margin: 0,
+  logoCode: {
+    color: 'var(--logo-code-color, #1E293B)',
+  },
+  logoTrack: {
+    color: '#0D9488',
+  },
+  rightGroup: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '32px',
+    flexWrap: 'wrap',
   },
   navTabs: {
     display: 'flex',
@@ -208,6 +283,7 @@ const styles = {
     background: 'rgba(255, 255, 255, 0.03)',
     border: '1px solid var(--border-color)',
     borderRadius: '30px',
+    transition: 'background var(--transition-fast)',
   },
   avatar: {
     width: '32px',
@@ -230,16 +306,44 @@ const styles = {
     color: 'var(--color-text-secondary)',
     marginTop: '2px',
   },
-  iconBtn: {
-    padding: '10px',
-    borderRadius: '8px',
-    background: 'rgba(255, 255, 255, 0.03)',
-    borderColor: 'var(--border-color)',
-    color: 'var(--color-text-secondary)',
+  dropdownMenu: {
+    position: 'absolute',
+    top: '100%',
+    right: 0,
+    marginTop: '8px',
+    background: 'var(--bg-card-solid)',
+    border: '1px solid var(--border-color)',
+    borderRadius: '12px',
+    boxShadow: 'var(--shadow-lg)',
+    display: 'flex',
+    flexDirection: 'column',
+    padding: '8px',
+    gap: '4px',
+    minWidth: '180px',
+    zIndex: 200,
   },
-  disconnectBtn: {
-    gap: '6px',
+  dropdownItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '10px',
+    width: '100%',
+    background: 'transparent',
+    border: '1px solid transparent',
     padding: '8px 12px',
     fontSize: '0.85rem',
+    borderRadius: '8px',
+    textAlign: 'left',
+    justifyContent: 'flex-start',
+    cursor: 'pointer',
+    color: 'var(--color-text-secondary)',
+    transition: 'all var(--transition-fast)',
+  },
+  dropdownItemDanger: {
+    color: 'var(--danger)',
+  },
+  dropdownDivider: {
+    height: '1px',
+    background: 'var(--border-color)',
+    margin: '4px 0',
   }
 };

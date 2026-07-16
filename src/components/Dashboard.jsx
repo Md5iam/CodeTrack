@@ -1,13 +1,7 @@
 import React from 'react';
 import { 
-  Trophy, 
-  Award, 
-  Calendar, 
-  Flame, 
   CheckCircle2, 
   AlertCircle, 
-  Sparkles,
-  TrendingUp,
   Bookmark
 } from 'lucide-react';
 import { getRankColorClass } from '../utils/helpers';
@@ -16,13 +10,22 @@ export default function Dashboard({
   stats, 
   recentContests = [], 
   onNavigateToContests,
-  setFilterState
+  setFilterState,
+  platform = 'codeforces'
 }) {
-  const rankClass = getRankColorClass(stats.rank);
-  const maxRankClass = getRankColorClass(stats.maxRank);
+  const rankClass = platform === 'codeforces' 
+    ? getRankColorClass(stats.rank) 
+    : platform === 'atcoder' 
+      ? `rank-at-${stats.rank.toLowerCase()}` 
+      : `rank-lc-${stats.rank.toLowerCase()}`;
+  const maxRankClass = platform === 'codeforces' 
+    ? getRankColorClass(stats.maxRank) 
+    : platform === 'atcoder' 
+      ? `rank-at-${stats.maxRank.toLowerCase()}` 
+      : `rank-lc-${stats.maxRank.toLowerCase()}`;
 
   // Calculate rating progress to next level
-  const RATING_LEVELS = [
+  const CF_RATING_LEVELS = [
     { name: 'Newbie', min: 0, max: 1199 },
     { name: 'Pupil', min: 1200, max: 1399 },
     { name: 'Specialist', min: 1400, max: 1599 },
@@ -35,6 +38,29 @@ export default function Dashboard({
     { name: 'Legendary Grandmaster', min: 3000, max: 8000 }
   ];
 
+  const ATCODER_RATING_LEVELS = [
+    { name: 'Grey', min: 0, max: 399 },
+    { name: 'Brown', min: 400, max: 799 },
+    { name: 'Green', min: 800, max: 1199 },
+    { name: 'Cyan', min: 1200, max: 1599 },
+    { name: 'Blue', min: 1600, max: 1999 },
+    { name: 'Yellow', min: 2000, max: 2399 },
+    { name: 'Orange', min: 2400, max: 2799 },
+    { name: 'Red', min: 2800, max: 8000 }
+  ];
+
+  const LEETCODE_RATING_LEVELS = [
+    { name: 'Standard', min: 0, max: 1599 },
+    { name: 'Knight', min: 1600, max: 2199 },
+    { name: 'Guardian', min: 2200, max: 8000 }
+  ];
+
+  const RATING_LEVELS = platform === 'codeforces' 
+    ? CF_RATING_LEVELS 
+    : platform === 'atcoder' 
+      ? ATCODER_RATING_LEVELS 
+      : LEETCODE_RATING_LEVELS;
+
   const currentLevelIndex = RATING_LEVELS.findIndex(
     level => stats.currentRating >= level.min && stats.currentRating <= level.max
   );
@@ -44,6 +70,23 @@ export default function Dashboard({
     ? RATING_LEVELS[currentLevelIndex + 1] 
     : null;
 
+  const currentRankColorVar = `var(--rank-${
+    platform === 'codeforces' 
+      ? stats.rank.toLowerCase().replace(/ /g, '-') 
+      : platform === 'atcoder' 
+        ? `at-${stats.rank.toLowerCase()}` 
+        : `lc-${stats.rank.toLowerCase()}`
+  })`;
+  const nextRankColorVar = nextLevel 
+    ? `var(--rank-${
+        platform === 'codeforces' 
+          ? nextLevel.name.toLowerCase().replace(/ /g, '-') 
+          : platform === 'atcoder' 
+            ? `at-${nextLevel.name.toLowerCase()}` 
+            : `lc-${nextLevel.name.toLowerCase()}`
+      })` 
+    : 'var(--primary)';
+
   let progressPercent = 0;
   if (nextLevel && stats.currentRating > 0) {
     const range = nextLevel.min - currentLevel.min;
@@ -51,11 +94,11 @@ export default function Dashboard({
     progressPercent = Math.min(100, Math.max(0, Math.round((progress / range) * 100)));
   }
 
-  // Action: filter contests by status "Not Done"
+  // Action: filter contests by status "Revisit"
   const handleViewUpsolve = () => {
     setFilterState(prev => ({
       ...prev,
-      userStatus: 'Not Done',
+      userStatus: 'Revisit',
       searchTerm: '',
       division: 'All',
       untriedProblems: ''
@@ -66,7 +109,7 @@ export default function Dashboard({
   const handleViewCompleted = () => {
     setFilterState(prev => ({
       ...prev,
-      userStatus: 'Done',
+      userStatus: 'Complete',
       searchTerm: '',
       division: 'All',
       untriedProblems: ''
@@ -74,108 +117,199 @@ export default function Dashboard({
     onNavigateToContests();
   };
 
+  const ratingHistory = stats.ratingHistory || [];
+  const ratings = ratingHistory.map(h => h.newRating);
+  
+  // Hand-rolled Sparkline Path Calculation
+  let sparklinePath = '';
+  let sparklineAreaPath = '';
+  const width = 140;
+  const height = 50;
+  const padding = 6;
+  let points = [];
+  let lastPoint = { x: width / 2, y: height / 2 };
+  
+  if (ratings.length > 0) {
+    const minRating = Math.min(...ratings);
+    const maxRating = Math.max(...ratings);
+    const ratingRange = maxRating - minRating;
+    
+    points = ratings.map((val, index) => {
+      const x = ratings.length > 1 
+        ? padding + (index / (ratings.length - 1)) * (width - 2 * padding)
+        : width / 2;
+      const y = ratingRange > 0
+        ? height - padding - ((val - minRating) / ratingRange) * (height - 2 * padding)
+        : height / 2;
+      return { x, y };
+    });
+    
+    sparklinePath = points.map((p, i) => `${i === 0 ? 'M' : 'L'} ${p.x} ${p.y}`).join(' ');
+    
+    if (points.length > 0) {
+      sparklineAreaPath = `${sparklinePath} L ${points[points.length - 1].x} ${height} L ${points[0].x} ${height} Z`;
+      lastPoint = points[points.length - 1];
+    }
+  }
+
   return (
     <div className="container animate-fade-in" style={styles.dashboardContainer}>
-      {/* Welcome Banner */}
-      <div className="glass-card" style={styles.welcomeBanner}>
-        <div style={styles.welcomeInfo}>
-          <div style={styles.sparkleIcon}>
-            <Sparkles size={24} color="var(--info)" />
-          </div>
-          <div>
-            <h2 style={styles.welcomeTitle}>Dashboard Overview</h2>
-            <p style={styles.welcomeSub}>
-              Track your ratings, milestones, and contest upsolving progress. Keep pushing your limits!
-            </p>
-          </div>
+      
+      {/* Redesigned Hero Section */}
+      <div className="glass-card hero-banner-container">
+        {/* Left Column: Hero Rating Display */}
+        <div className="hero-rating-box">
+          <span className="hero-rating-label">Current Rating</span>
+          <h1 className={`hero-rating-value font-mono ${rankClass}`} style={{ margin: 0 }}>
+            {stats.currentRating || 'Unrated'}
+          </h1>
+          <span className={`badge ${rankClass}-bg`} style={{ ...styles.rankBadge, backgroundColor: getRankBgColor(stats.rank, platform) }}>
+            {stats.rank}
+          </span>
         </div>
-        {stats.currentRating > 0 && nextLevel && (
-          <div style={styles.milestoneTracker}>
+ 
+        {/* Center Column: Visual Rating Sparkline */}
+        <div className="hero-sparkline-box">
+          <span className="hero-sparkline-label">Rating Sparkline</span>
+          {ratings.length > 1 ? (
+            <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
+              <svg width={width} height={height} style={{ overflow: 'visible' }}>
+                <defs>
+                  <linearGradient id="sparkline-grad" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor={currentRankColorVar} stopOpacity="0.25" />
+                    <stop offset="100%" stopColor={currentRankColorVar} stopOpacity="0.00" />
+                  </linearGradient>
+                </defs>
+                <path d={sparklineAreaPath} fill="url(#sparkline-grad)" />
+                <path 
+                  d={sparklinePath} 
+                  fill="none" 
+                  stroke={currentRankColorVar} 
+                  strokeWidth="2.5" 
+                  strokeLinecap="round" 
+                  strokeLinejoin="round" 
+                />
+                <circle 
+                  cx={lastPoint.x} 
+                  cy={lastPoint.y} 
+                  r="4" 
+                  fill={currentRankColorVar} 
+                />
+              </svg>
+              <span className="font-mono" style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)' }}>
+                {ratings.length} contests
+              </span>
+            </div>
+          ) : (
+            <div style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem', fontStyle: 'italic' }}>
+              No contest history found
+            </div>
+          )}
+        </div>
+ 
+        {/* Right Column: Milestone Tracker */}
+        {stats.currentRating > 0 && nextLevel ? (
+          <div className="hero-milestone-box">
             <div style={styles.milestoneHeader}>
               <span style={styles.milestoneLabel}>Progress to {nextLevel.name}</span>
-              <span style={styles.milestoneVal}>{stats.currentRating} / {nextLevel.min} ({progressPercent}%)</span>
+              <span className="font-mono" style={styles.milestoneVal}>
+                {stats.currentRating} / {nextLevel.min} ({progressPercent}%)
+              </span>
             </div>
             <div style={styles.progressBarBg}>
               <div 
                 style={{ 
                   ...styles.progressBarFill, 
                   width: `${progressPercent}%`,
-                  background: `linear-gradient(90deg, var(--primary), ${getRankColorHex(nextLevel.name)})` 
+                  background: `linear-gradient(90deg, ${currentRankColorVar}, ${nextRankColorVar})` 
                 }} 
               />
             </div>
           </div>
+        ) : (
+          <div className="hero-milestone-box" style={{ justifyContent: 'center' }}>
+            <span style={{ color: 'var(--color-text-muted)', fontSize: '0.85rem', fontStyle: 'italic' }}>
+              Milestone unavailable (unrated user)
+            </span>
+          </div>
         )}
       </div>
 
-      {/* Main Grid */}
-      <div style={styles.statsGrid}>
-        {/* Rating Card */}
-        <div className="glass-card" style={styles.statCard}>
-          <div style={styles.cardHeader}>
-            <Trophy size={20} color="var(--warning)" />
-            <span style={styles.cardLabel}>Current Rating</span>
-          </div>
-          <div style={styles.ratingValueBox}>
-            <span className={rankClass} style={styles.largeValue}>
-              {stats.currentRating || 'Unrated'}
-            </span>
-            <span className={`badge ${rankClass}-bg`} style={{ ...styles.rankBadge, backgroundColor: getRankBgColor(stats.rank) }}>
-              {stats.rank}
-            </span>
-          </div>
+      {/* Redesigned Lighter Secondary Stats Row */}
+      <div className="glass-card secondary-stats-row">
+        {/* Max Rating */}
+        <div className="secondary-stat-item">
+          <span className="secondary-stat-label">Maximum Rating</span>
+          <span className={`secondary-stat-value font-mono ${maxRankClass}`} style={{ margin: '4px 0' }}>
+            {stats.maxRating || '0'}
+          </span>
+          <span className={`secondary-stat-badge ${maxRankClass}-bg`} style={{ backgroundColor: getRankBgColor(stats.maxRank, platform) }}>
+            Max: {stats.maxRank}
+          </span>
         </div>
 
-        {/* Max Rating Card */}
-        <div className="glass-card" style={styles.statCard}>
-          <div style={styles.cardHeader}>
-            <Award size={20} color="var(--favourite)" />
-            <span style={styles.cardLabel}>Maximum Rating</span>
-          </div>
-          <div style={styles.ratingValueBox}>
-            <span className={maxRankClass} style={styles.largeValue}>
-              {stats.maxRating || 'Unrated'}
-            </span>
-            <span className={`badge ${maxRankClass}-bg`} style={{ ...styles.rankBadge, backgroundColor: getRankBgColor(stats.maxRank) }}>
-              Max: {stats.maxRank}
-            </span>
-          </div>
+        <div className="secondary-divider"></div>
+
+        {/* Problems Solved */}
+        <div className="secondary-stat-item">
+          <span className="secondary-stat-label">Problems Solved</span>
+          <span className="secondary-stat-value font-mono" style={{ color: 'var(--success)', margin: '4px 0' }}>
+            {stats.totalUniqueSolved || '0'}
+          </span>
+          <span className="badge badge-success" style={{ fontSize: '0.75rem', padding: '2px 8px', borderRadius: '12px' }}>
+            Accepted
+          </span>
         </div>
 
-        {/* Contests Count Card */}
-        <div className="glass-card" style={styles.statCard}>
-          <div style={styles.cardHeader}>
-            <Calendar size={20} color="var(--primary)" />
-            <span style={styles.cardLabel}>Participation Stats</span>
-          </div>
-          <div style={styles.statsInlineBox}>
-            <div style={styles.subStat}>
-              <span style={styles.mediumValue}>{stats.totalOfficial}</span>
-              <span style={styles.subLabel}>Official Rounds</span>
+        <div className="secondary-divider"></div>
+
+        {/* Participation Stats or LeetCode Solved Breakdown */}
+        {platform === 'leetcode' ? (
+          <div className="secondary-stat-item" style={{ flex: 1.5 }}>
+            <span className="secondary-stat-label">Solved Breakdown</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '14px', marginTop: '6px', width: '100%' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+                <span className="font-mono" style={{ fontSize: '1.25rem', fontWeight: '700', color: '#00b8a3', lineHeight: 1.1 }}>
+                  {stats.solvedBreakdown?.easy || 0}
+                </span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>Easy</span>
+              </div>
+              <div style={{ width: '1px', height: '24px', background: 'var(--border-color)' }}></div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+                <span className="font-mono" style={{ fontSize: '1.25rem', fontWeight: '700', color: '#ffc01e', lineHeight: 1.1 }}>
+                  {stats.solvedBreakdown?.medium || 0}
+                </span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>Medium</span>
+              </div>
+              <div style={{ width: '1px', height: '24px', background: 'var(--border-color)' }}></div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', flex: 1 }}>
+                <span className="font-mono" style={{ fontSize: '1.25rem', fontWeight: '700', color: '#ef4743', lineHeight: 1.1 }}>
+                  {stats.solvedBreakdown?.hard || 0}
+                </span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>Hard</span>
+              </div>
             </div>
-            <div style={styles.verticalDivider}></div>
-            <div style={styles.subStat}>
-              <span style={styles.mediumValue}>{stats.totalVirtual}</span>
-              <span style={styles.subLabel}>Virtual Rounds</span>
+          </div>
+        ) : (
+          <div className="secondary-stat-item">
+            <span className="secondary-stat-label">Participation</span>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '16px', marginTop: '6px' }}>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <span className="font-mono" style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--color-text-primary)', lineHeight: 1.1 }}>
+                  {stats.totalOfficial || '0'}
+                </span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>Official</span>
+              </div>
+              <div style={{ width: '1px', height: '28px', background: 'var(--border-color)' }}></div>
+              <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center' }}>
+                <span className="font-mono" style={{ fontSize: '1.5rem', fontWeight: '700', color: 'var(--color-text-primary)', lineHeight: 1.1 }}>
+                  {stats.totalVirtual || '0'}
+                </span>
+                <span style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginTop: '4px' }}>Virtual</span>
+              </div>
             </div>
           </div>
-        </div>
-
-        {/* Solved Problems Card */}
-        <div className="glass-card" style={styles.statCard}>
-          <div style={styles.cardHeader}>
-            <Flame size={20} color="var(--success)" />
-            <span style={styles.cardLabel}>Unique Problems Solved</span>
-          </div>
-          <div style={styles.ratingValueBox}>
-            <span style={{ ...styles.largeValue, color: 'var(--success)' }}>
-              {stats.totalUniqueSolved}
-            </span>
-            <span className="badge badge-success" style={styles.rankBadge}>
-              Accepted Tasks
-            </span>
-          </div>
-        </div>
+        )}
       </div>
 
       {/* Progress Cards */}
@@ -187,7 +321,7 @@ export default function Dashboard({
               <AlertCircle size={22} color="var(--warning)" />
               <h3 style={styles.trackerTitle}>Upsolving Queue</h3>
             </div>
-            <span className="badge badge-warning" style={styles.queueCount}>
+            <span className="badge badge-warning font-mono" style={styles.queueCount}>
               {stats.needUpsolvingContests} Contests
             </span>
           </div>
@@ -214,7 +348,7 @@ export default function Dashboard({
               <CheckCircle2 size={22} color="var(--success)" />
               <h3 style={styles.trackerTitle}>Completed Rounds</h3>
             </div>
-            <span className="badge badge-success" style={styles.queueCount}>
+            <span className="badge badge-success font-mono" style={styles.queueCount}>
               {stats.completedContests} Contests
             </span>
           </div>
@@ -259,7 +393,7 @@ export default function Dashboard({
               <div key={c.id} style={styles.recentRow}>
                 <div style={styles.recentRowNameSection}>
                   <h4 style={styles.recentRowName}>{c.name}</h4>
-                  <span style={styles.recentRowDate}>ID: {c.id}</span>
+                  <span className="font-mono" style={styles.recentRowDate}>ID: {c.id}</span>
                 </div>
                 <div style={styles.recentRowBadges}>
                   <span className={`badge ${getStatusBadgeClass(c.status)}`}>
@@ -294,30 +428,29 @@ function getStatusBadgeClass(status) {
   }
 }
 
-// Map ranks to hex colors
-function getRankColorHex(rank = '') {
-  const r = rank.toLowerCase();
-  if (r.includes('legendary') || r.includes('tourist')) return '#ff3333';
-  if (r.includes('grandmaster')) return '#ff7777';
-  if (r.includes('master')) return '#ffbb55';
-  if (r.includes('candidate')) return '#aa88ff';
-  if (r.includes('expert')) return '#3377ff';
-  if (r.includes('specialist')) return '#22abbb';
-  if (r.includes('pupil')) return '#00aa00';
-  if (r.includes('newbie')) return '#999999';
-  return 'var(--primary)';
+// Map ranks to hex colors using CSS custom properties
+function getRankColorHex(rank = '', platform = 'codeforces') {
+  const r = rank.toLowerCase().replace(/ /g, '-');
+  if (platform === 'atcoder') {
+    return `var(--rank-at-${r})`;
+  }
+  if (platform === 'leetcode') {
+    return `var(--rank-lc-${r})`;
+  }
+  if (r.includes('tourist')) return 'var(--rank-legendary)';
+  return `var(--rank-${r})`;
 }
 
-function getRankBgColor(rank = '') {
-  const r = rank.toLowerCase();
-  if (r.includes('legendary') || r.includes('grandmaster')) return 'rgba(255, 51, 51, 0.1)';
-  if (r.includes('master')) return 'rgba(255, 187, 85, 0.1)';
-  if (r.includes('candidate')) return 'rgba(170, 136, 255, 0.1)';
-  if (r.includes('expert')) return 'rgba(51, 119, 255, 0.1)';
-  if (r.includes('specialist')) return 'rgba(34, 171, 187, 0.1)';
-  if (r.includes('pupil')) return 'rgba(0, 170, 0, 0.1)';
-  if (r.includes('newbie')) return 'rgba(153, 153, 153, 0.1)';
-  return 'rgba(255, 255, 255, 0.05)';
+function getRankBgColor(rank = '', platform = 'codeforces') {
+  const r = rank.toLowerCase().replace(/ /g, '-');
+  if (platform === 'atcoder') {
+    return `var(--rank-at-${r}-bg)`;
+  }
+  if (platform === 'leetcode') {
+    return `var(--rank-lc-${r}-bg)`;
+  }
+  if (r.includes('tourist')) return 'var(--rank-legendary-bg)';
+  return `var(--rank-${r}-bg)`;
 }
 
 const styles = {
@@ -327,51 +460,6 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '24px',
-  },
-  welcomeBanner: {
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'space-between',
-    flexWrap: 'wrap',
-    gap: '24px',
-    background: 'linear-gradient(135deg, rgba(22, 28, 45, 0.8), rgba(15, 20, 35, 0.9))',
-    borderColor: 'rgba(99, 102, 241, 0.15)',
-    padding: '30px',
-  },
-  welcomeInfo: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '16px',
-    flex: '1 1 300px',
-    textAlign: 'left',
-  },
-  sparkleIcon: {
-    width: '48px',
-    height: '48px',
-    borderRadius: '12px',
-    background: 'rgba(6, 182, 212, 0.1)',
-    display: 'flex',
-    alignItems: 'center',
-    justifyContent: 'center',
-  },
-  welcomeTitle: {
-    fontSize: '1.4rem',
-    fontWeight: '700',
-    margin: '0 0 4px 0',
-  },
-  welcomeSub: {
-    color: 'var(--color-text-secondary)',
-    fontSize: '0.88rem',
-    margin: 0,
-  },
-  milestoneTracker: {
-    display: 'flex',
-    flexDirection: 'column',
-    gap: '8px',
-    flex: '1 1 300px',
-    maxWidth: '450px',
-    width: '100%',
-    textAlign: 'left',
   },
   milestoneHeader: {
     display: 'flex',
@@ -397,77 +485,10 @@ const styles = {
     borderRadius: '10px',
     transition: 'width 0.8s ease-out',
   },
-  statsGrid: {
-    display: 'grid',
-    gridTemplateColumns: 'repeat(auto-fit, minmax(240px, 1fr))',
-    gap: '20px',
-  },
-  statCard: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: '12px',
-    padding: '24px',
-    textAlign: 'left',
-  },
-  cardHeader: {
-    display: 'flex',
-    alignItems: 'center',
-    gap: '8px',
-  },
-  cardLabel: {
-    fontSize: '0.85rem',
-    fontWeight: '600',
-    color: 'var(--color-text-secondary)',
-    textTransform: 'uppercase',
-    letterSpacing: '0.5px',
-  },
-  ratingValueBox: {
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-    gap: '6px',
-    marginTop: '4px',
-  },
-  largeValue: {
-    fontSize: '2.2rem',
-    fontWeight: '800',
-    lineHeight: 1,
-    letterSpacing: '-1px',
-  },
   rankBadge: {
     fontSize: '0.75rem',
     textTransform: 'capitalize',
     padding: '3px 8px',
-  },
-  statsInlineBox: {
-    display: 'flex',
-    alignItems: 'center',
-    width: '100%',
-    gap: '16px',
-    marginTop: '6px',
-  },
-  subStat: {
-    flex: 1,
-    display: 'flex',
-    flexDirection: 'column',
-    alignItems: 'flex-start',
-  },
-  mediumValue: {
-    fontSize: '1.8rem',
-    fontWeight: '700',
-    color: 'var(--color-text-primary)',
-    lineHeight: 1,
-  },
-  subLabel: {
-    fontSize: '0.75rem',
-    color: 'var(--color-text-muted)',
-    marginTop: '6px',
-  },
-  verticalDivider: {
-    width: '1px',
-    height: '40px',
-    background: 'var(--border-color)',
   },
   twoColumnGrid: {
     display: 'grid',

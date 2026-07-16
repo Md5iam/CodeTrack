@@ -6,12 +6,15 @@ import {
   clearSupabaseCredentials,
   getSupabaseClient 
 } from '../services/supabase';
+import { getLeetCodeApiUrl, saveLeetCodeApiUrl } from '../services/storage';
 
 export default function CloudSettingsModal({ isOpen, onClose, onConfigChange }) {
   const [urlInput, setUrlInput] = useState('');
   const [keyInput, setKeyInput] = useState('');
   const [status, setStatus] = useState({ type: '', msg: '' });
   const [copied, setCopied] = useState(false);
+  const [activeTab, setActiveTab] = useState('database'); // 'database' or 'leetcode'
+  const [leetcodeUrlInput, setLeetcodeUrlInput] = useState('');
 
   const creds = getSupabaseCredentials();
 
@@ -23,6 +26,7 @@ export default function CloudSettingsModal({ isOpen, onClose, onConfigChange }) 
       setUrlInput('');
       setKeyInput('');
     }
+    setLeetcodeUrlInput(getLeetCodeApiUrl());
     setStatus({ type: '', msg: '' });
   }, [isOpen]);
 
@@ -85,6 +89,15 @@ export default function CloudSettingsModal({ isOpen, onClose, onConfigChange }) 
     onConfigChange();
   };
 
+  const handleSaveLeetCode = (e) => {
+    e.preventDefault();
+    const url = leetcodeUrlInput.trim();
+    saveLeetCodeApiUrl(url);
+    setStatus({ type: 'success', msg: 'LeetCode API URL updated successfully!' });
+    setTimeout(() => setStatus({ type: '', msg: '' }), 3000);
+    onConfigChange();
+  };
+
   const sqlCode = `create table codetrack_contest_data (
   id bigint generated always as identity primary key,
   handle text not null,
@@ -121,99 +134,171 @@ create policy "Allow public access" on codetrack_contest_data for all using (tru
         </div>
 
         <p style={styles.desc}>
-          Store your notes, stars, and upsolving statuses in a secure cloud database. All devices logged in under your handle will sync dynamically.
+          Configure database backup synchronization and platform API endpoint options below.
         </p>
 
-        {creds && (
-          <div style={styles.connectedBox}>
-            <ShieldCheck size={20} color="var(--success)" />
-            <div style={styles.connectedInfo}>
-              <span style={styles.connectedLabel}>Cloud Synchronization Active</span>
-              <span style={styles.connectedUrl} title={creds.url}>
-                URL: {creds.url.substring(0, 30)}...
-              </span>
-              <span style={styles.connectedSource}>
-                Credentials loaded from: {creds.source === 'env' ? 'Environment Variables (.env)' : 'Browser Local Settings'}
+        {/* Tab Selection Switcher */}
+        <div style={styles.tabGroup}>
+          <button 
+            type="button"
+            className={`btn ${activeTab === 'database' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ ...styles.tabBtn, flex: 1 }}
+            onClick={() => {
+              setActiveTab('database');
+              setStatus({ type: '', msg: '' });
+            }}
+          >
+            Cloud Database
+          </button>
+          <button 
+            type="button"
+            className={`btn ${activeTab === 'leetcode' ? 'btn-primary' : 'btn-secondary'}`}
+            style={{ ...styles.tabBtn, flex: 1 }}
+            onClick={() => {
+              setActiveTab('leetcode');
+              setStatus({ type: '', msg: '' });
+            }}
+          >
+            LeetCode API
+          </button>
+        </div>
+
+        {activeTab === 'database' ? (
+          <>
+            <p style={styles.desc}>
+              Store your notes, stars, and upsolving statuses in a secure cloud database. All devices logged in under your handle will sync dynamically.
+            </p>
+
+            {creds && (
+              <div style={styles.connectedBox}>
+                <ShieldCheck size={20} color="var(--success)" />
+                <div style={styles.connectedInfo}>
+                  <span style={styles.connectedLabel}>Cloud Sync Active</span>
+                  <span style={styles.connectedUrl} title={creds.url}>
+                    URL: {creds.url.substring(0, 30)}...
+                  </span>
+                  <span style={styles.connectedSource}>
+                    Loaded from: {creds.source === 'env' ? 'Environment Variables (.env)' : 'Browser Local Settings'}
+                  </span>
+                </div>
+                {creds.source === 'local' && (
+                  <button 
+                    className="btn btn-danger" 
+                    style={styles.disconnectBtn}
+                    onClick={handleDisconnect}
+                  >
+                    Disconnect
+                  </button>
+                )}
+              </div>
+            )}
+
+            {(!creds || creds.source === 'local') && (
+              <form onSubmit={handleSave} style={styles.form}>
+                {!creds && <h4 style={styles.formTitle}>Connect a Database</h4>}
+                
+                <div className="form-group" style={{ marginBottom: '12px' }}>
+                  <label className="form-label">Supabase Project URL</label>
+                  <input 
+                    type="text" 
+                    className="form-control"
+                    style={styles.input}
+                    placeholder="https://yourprojectid.supabase.co"
+                    value={urlInput}
+                    onChange={(e) => setUrlInput(e.target.value)}
+                  />
+                </div>
+
+                <div className="form-group" style={{ marginBottom: '16px' }}>
+                  <label className="form-label">Supabase Anon Key (Public Key)</label>
+                  <div style={styles.inputWrapper}>
+                    <Key size={14} style={styles.inputIcon} />
+                    <input 
+                      type="password" 
+                      className="form-control"
+                      style={styles.keyInput}
+                      placeholder="your-anon-public-key"
+                      value={keyInput}
+                      onChange={(e) => setKeyInput(e.target.value)}
+                    />
+                  </div>
+                </div>
+
+                {status.msg && (status.type === 'error' || status.type === 'success' || status.type === 'loading' || status.type === 'warning') && (
+                  <div style={{ 
+                    ...styles.statusBox, 
+                    background: status.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : status.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
+                    color: status.type === 'error' ? 'var(--danger)' : status.type === 'success' ? 'var(--success)' : 'var(--warning)',
+                    borderColor: status.type === 'error' ? 'rgba(239, 68, 68, 0.2)' : status.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                  }}>
+                    {status.type === 'error' ? <ShieldAlert size={16} /> : <ShieldCheck size={16} />}
+                    <span>{status.msg}</span>
+                  </div>
+                )}
+
+                {!creds && (
+                  <button type="submit" className="btn btn-primary" style={styles.saveBtn}>
+                    Save & Connect
+                  </button>
+                )}
+              </form>
+            )}
+
+            <div style={styles.sqlSection}>
+              <div style={styles.sqlHeader}>
+                <span style={styles.sqlTitle}>Supabase SQL Schema</span>
+                <button style={styles.copyBtn} onClick={handleCopySql}>
+                  {copied ? <Check size={14} color="var(--success)" /> : <Clipboard size={14} />}
+                  <span>{copied ? 'Copied!' : 'Copy SQL Script'}</span>
+                </button>
+              </div>
+              <pre style={styles.sqlCode}>
+                <code>{sqlCode}</code>
+              </pre>
+              <span style={styles.sqlHelp}>
+                Copy and run this query inside your **Supabase Project ➔ SQL Editor** to create the tables.
               </span>
             </div>
-            {creds.source === 'local' && (
-              <button 
-                className="btn btn-danger" 
-                style={styles.disconnectBtn}
-                onClick={handleDisconnect}
-              >
-                Disconnect
-              </button>
-            )}
-          </div>
-        )}
+          </>
+        ) : (
+          <form onSubmit={handleSaveLeetCode} style={styles.form}>
+            <h4 style={styles.formTitle}>LeetCode API Settings</h4>
+            <p style={styles.desc}>
+              Bypass shared server rate limits by deploying your own private API instance to Vercel/Render.
+            </p>
 
-        {(!creds || creds.source === 'local') && (
-          <form onSubmit={handleSave} style={styles.form}>
-            {!creds && <h4 style={styles.formTitle}>Connect a Database</h4>}
-            
-            <div className="form-group" style={{ marginBottom: '12px' }}>
-              <label className="form-label">Supabase Project URL</label>
+            <div className="form-group" style={{ marginBottom: '16px', marginTop: '8px' }}>
+              <label className="form-label">Custom API Base URL</label>
               <input 
                 type="text" 
                 className="form-control"
                 style={styles.input}
-                placeholder="https://yourprojectid.supabase.co"
-                value={urlInput}
-                onChange={(e) => setUrlInput(e.target.value)}
+                placeholder="https://alfa-leetcode-api.onrender.com"
+                value={leetcodeUrlInput}
+                onChange={(e) => setLeetcodeUrlInput(e.target.value)}
               />
+              <span style={{ fontSize: '0.72rem', color: 'var(--color-text-muted)', marginTop: '4px', display: 'block' }}>
+                Leave blank or set to <code>https://alfa-leetcode-api.onrender.com</code> to use the public default.
+              </span>
             </div>
 
-            <div className="form-group" style={{ marginBottom: '16px' }}>
-              <label className="form-label">Supabase Anon Key (Public Key)</label>
-              <div style={styles.inputWrapper}>
-                <Key size={14} style={styles.inputIcon} />
-                <input 
-                  type="password" 
-                  className="form-control"
-                  style={styles.keyInput}
-                  placeholder="your-anon-public-key"
-                  value={keyInput}
-                  onChange={(e) => setKeyInput(e.target.value)}
-                />
-              </div>
-            </div>
-
-            {status.msg && (
+            {status.msg && status.type === 'success' && (
               <div style={{ 
                 ...styles.statusBox, 
-                background: status.type === 'error' ? 'rgba(239, 68, 68, 0.1)' : status.type === 'success' ? 'rgba(16, 185, 129, 0.1)' : 'rgba(245, 158, 11, 0.1)',
-                color: status.type === 'error' ? 'var(--danger)' : status.type === 'success' ? 'var(--success)' : 'var(--warning)',
-                borderColor: status.type === 'error' ? 'rgba(239, 68, 68, 0.2)' : status.type === 'success' ? 'rgba(16, 185, 129, 0.2)' : 'rgba(245, 158, 11, 0.2)',
+                background: 'rgba(16, 185, 129, 0.1)',
+                color: 'var(--success)',
+                borderColor: 'rgba(16, 185, 129, 0.2)',
               }}>
-                {status.type === 'error' ? <ShieldAlert size={16} /> : <ShieldCheck size={16} />}
+                <ShieldCheck size={16} />
                 <span>{status.msg}</span>
               </div>
             )}
 
-            {!creds && (
-              <button type="submit" className="btn btn-primary" style={styles.saveBtn}>
-                Save & Connect
-              </button>
-            )}
+            <button type="submit" className="btn btn-primary" style={styles.saveBtn}>
+              Save API Configuration
+            </button>
           </form>
         )}
-
-        <div style={styles.sqlSection}>
-          <div style={styles.sqlHeader}>
-            <span style={styles.sqlTitle}>Supabase SQL Schema</span>
-            <button style={styles.copyBtn} onClick={handleCopySql}>
-              {copied ? <Check size={14} color="var(--success)" /> : <Clipboard size={14} />}
-              <span>{copied ? 'Copied!' : 'Copy SQL Script'}</span>
-            </button>
-          </div>
-          <pre style={styles.sqlCode}>
-            <code>{sqlCode}</code>
-          </pre>
-          <span style={styles.sqlHelp}>
-            Copy and run this query inside your **Supabase Project ➔ SQL Editor** to create the tables.
-          </span>
-        </div>
       </div>
     </div>
   );
@@ -245,6 +330,23 @@ const styles = {
     flexDirection: 'column',
     gap: '16px',
     padding: '28px',
+  },
+  tabGroup: {
+    display: 'flex',
+    gap: '8px',
+    background: 'rgba(255, 255, 255, 0.02)',
+    padding: '4px',
+    borderRadius: '10px',
+    border: '1px solid var(--border-color)',
+    marginBottom: '8px'
+  },
+  tabBtn: {
+    padding: '8px 16px',
+    fontSize: '0.85rem',
+    borderRadius: '8px',
+    border: 'none',
+    cursor: 'pointer',
+    transition: 'all 0.2s ease',
   },
   header: {
     display: 'flex',

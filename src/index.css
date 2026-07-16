@@ -1,7 +1,11 @@
-@import url('https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
+@import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Outfit:wght@300;400;500;600;700;800&family=JetBrains+Mono:wght@400;500&display=swap');
 
 :root {
   /* Color Palette — Refined Slate / Soft Blue */
+  --logo-code-color: #e2e8f0;
+  /* Hero banner */
+  --hero-bg: linear-gradient(135deg, rgba(13, 148, 136, 0.07) 0%, rgba(15, 23, 42, 0.6) 100%);
+  --hero-border: rgba(13, 148, 136, 0.2);
   --bg-main: #0f1117;
   --bg-card: rgba(23, 25, 35, 0.75);
   --bg-card-hover: rgba(30, 33, 48, 0.88);
@@ -29,6 +33,62 @@
   --info-glow: rgba(56, 189, 248, 0.12);
   --favourite: #fb7185;      /* Rose */
   
+  /* Unified Rank Colors (Dark Theme) */
+  --rank-newbie: #adb5bd;
+  --rank-pupil: #69db7c;
+  --rank-specialist: #63e6be;
+  --rank-expert: #74c0fc;
+  --rank-candidate-master: #b197fc;
+  --rank-master: #ffd8a8;
+  --rank-intl-master: #ffc078;
+  --rank-grandmaster: #ffa0a0;
+  --rank-intl-grandmaster: #ff6b6b;
+  --rank-legendary: #ff6b6b;
+  --rank-unrated: #e2e8f0;
+
+  /* AtCoder Rank Colors (Dark Theme) */
+  --rank-at-grey: #adb5bd;
+  --rank-at-brown: #d2b48c;
+  --rank-at-green: #69db7c;
+  --rank-at-cyan: #63e6be;
+  --rank-at-blue: #74c0fc;
+  --rank-at-yellow: #ffd8a8;
+  --rank-at-orange: #ffc078;
+  --rank-at-red: #ea580c;
+
+  /* LeetCode Rank Colors (Dark Theme) */
+  --rank-lc-guardian: #ffa116;
+  --rank-lc-knight: #b197fc;
+  --rank-lc-standard: #adb5bd;
+
+  /* LeetCode Translucent Badge Backgrounds (Dark Theme) */
+  --rank-lc-guardian-bg: rgba(255, 161, 22, 0.1);
+  --rank-lc-knight-bg: rgba(177, 151, 252, 0.1);
+  --rank-lc-standard-bg: rgba(173, 181, 189, 0.1);
+
+  /* AtCoder Translucent Badge Backgrounds (Dark Theme) */
+  --rank-at-grey-bg: rgba(173, 181, 189, 0.1);
+  --rank-at-brown-bg: rgba(210, 180, 140, 0.1);
+  --rank-at-green-bg: rgba(105, 219, 124, 0.1);
+  --rank-at-cyan-bg: rgba(99, 230, 190, 0.1);
+  --rank-at-blue-bg: rgba(116, 192, 252, 0.1);
+  --rank-at-yellow-bg: rgba(255, 216, 168, 0.1);
+  --rank-at-orange-bg: rgba(255, 192, 120, 0.1);
+  --rank-at-red-bg: rgba(255, 160, 160, 0.1);
+
+  /* Translucent Badge Backgrounds (Dark Theme) */
+  --rank-newbie-bg: rgba(173, 181, 189, 0.1);
+  --rank-pupil-bg: rgba(105, 219, 124, 0.1);
+  --rank-specialist-bg: rgba(99, 230, 190, 0.1);
+  --rank-expert-bg: rgba(116, 192, 252, 0.1);
+  --rank-candidate-master-bg: rgba(177, 151, 252, 0.1);
+  --rank-master-bg: rgba(255, 216, 168, 0.1);
+  --rank-intl-master-bg: rgba(255, 192, 120, 0.1);
+  --rank-grandmaster-bg: rgba(255, 160, 160, 0.1);
+  --rank-intl-grandmaster-bg: rgba(255, 107, 107, 0.1);
+  --rank-legendary-bg: rgba(255, 107, 107, 0.1);
+  --rank-unrated-bg: rgba(255, 255, 255, 0.05);
+
   /* Fonts */
   --font-sans: 'Outfit', -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
   --font-mono: 'JetBrains Mono', monospace;
@@ -83,7 +143,7 @@ a:hover {
 
 /* Codeforces Rank Color System */
 .rank-legendary {
-  color: #ff6b6b !important;
+  color: var(--rank-legendary) !important;
   font-weight: 700;
   text-shadow: 0 0 10px rgba(255, 107, 107, 0.20);
 }
@@ -92,40 +152,88 @@ a:hover {
   text-shadow: none;
 }
 .rank-intl-grandmaster {
-  color: #ff6b6b !important;
+  color: var(--rank-intl-grandmaster) !important;
   font-weight: 700;
 }
 .rank-grandmaster {
-  color: #ffa0a0 !important;
+  color: var(--rank-grandmaster) !important;
   font-weight: 700;
 }
 .rank-intl-master {
-  color: #ffc078 !important;
+  color: var(--rank-intl-master) !important;
   font-weight: 600;
 }
 .rank-master {
-  color: #ffd8a8 !important;
+  color: var(--rank-master) !important;
   font-weight: 600;
 }
 .rank-candidate-master {
-  color: #b197fc !important;
+  color: var(--rank-candidate-master) !important;
   font-weight: 600;
 }
 .rank-expert {
-  color: #74c0fc !important;
+  color: var(--rank-expert) !important;
   font-weight: 600;
 }
 .rank-specialist {
-  color: #63e6be !important;
+  color: var(--rank-specialist) !important;
 }
 .rank-pupil {
-  color: #69db7c !important;
+  color: var(--rank-pupil) !important;
 }
 .rank-newbie {
-  color: #adb5bd !important;
+  color: var(--rank-newbie) !important;
 }
 .rank-unrated {
-  color: var(--color-text-primary) !important;
+  color: var(--rank-unrated) !important;
+}
+
+/* Translucent Badge Classes */
+.rank-newbie-bg { background-color: var(--rank-newbie-bg) !important; border-color: rgba(173, 181, 189, 0.2) !important; color: var(--rank-newbie) !important; }
+.rank-pupil-bg { background-color: var(--rank-pupil-bg) !important; border-color: rgba(105, 219, 124, 0.2) !important; color: var(--rank-pupil) !important; }
+.rank-specialist-bg { background-color: var(--rank-specialist-bg) !important; border-color: rgba(99, 230, 190, 0.2) !important; color: var(--rank-specialist) !important; }
+.rank-expert-bg { background-color: var(--rank-expert-bg) !important; border-color: rgba(116, 192, 252, 0.2) !important; color: var(--rank-expert) !important; }
+.rank-candidate-master-bg { background-color: var(--rank-candidate-master-bg) !important; border-color: rgba(177, 151, 252, 0.2) !important; color: var(--rank-candidate-master) !important; }
+.rank-master-bg { background-color: var(--rank-master-bg) !important; border-color: rgba(255, 216, 168, 0.2) !important; color: var(--rank-master) !important; }
+.rank-intl-master-bg { background-color: var(--rank-intl-master-bg) !important; border-color: rgba(255, 192, 120, 0.2) !important; color: var(--rank-intl-master) !important; }
+.rank-grandmaster-bg { background-color: var(--rank-grandmaster-bg) !important; border-color: rgba(255, 160, 160, 0.2) !important; color: var(--rank-grandmaster) !important; }
+.rank-intl-grandmaster-bg { background-color: var(--rank-intl-grandmaster-bg) !important; border-color: rgba(255, 107, 107, 0.2) !important; color: var(--rank-legendary) !important; }
+.rank-legendary-bg { background-color: var(--rank-legendary-bg) !important; border-color: rgba(255, 107, 107, 0.2) !important; color: var(--rank-legendary) !important; }
+.rank-unrated-bg { background-color: var(--rank-unrated-bg) !important; border-color: var(--border-color) !important; color: var(--color-text-primary) !important; }
+
+/* AtCoder Rank Colors */
+.rank-at-grey { color: var(--rank-at-grey) !important; font-weight: 500; }
+.rank-at-brown { color: var(--rank-at-brown) !important; font-weight: 500; }
+.rank-at-green { color: var(--rank-at-green) !important; font-weight: 500; }
+.rank-at-cyan { color: var(--rank-at-cyan) !important; font-weight: 600; }
+.rank-at-blue { color: var(--rank-at-blue) !important; font-weight: 600; }
+.rank-at-yellow { color: var(--rank-at-yellow) !important; font-weight: 600; }
+.rank-at-orange { color: var(--rank-at-orange) !important; font-weight: 700; }
+.rank-at-red { color: var(--rank-at-red) !important; font-weight: 700; text-shadow: 0 0 10px rgba(255, 0, 0, 0.20); }
+
+/* AtCoder Translucent Badge Backgrounds */
+.rank-at-grey-bg { background-color: var(--rank-at-grey-bg) !important; border-color: rgba(173, 181, 189, 0.2) !important; color: var(--rank-at-grey) !important; }
+.rank-at-brown-bg { background-color: var(--rank-at-brown-bg) !important; border-color: rgba(210, 180, 140, 0.2) !important; color: var(--rank-at-brown) !important; }
+.rank-at-green-bg { background-color: var(--rank-at-green-bg) !important; border-color: rgba(105, 219, 124, 0.2) !important; color: var(--rank-at-green) !important; }
+.rank-at-cyan-bg { background-color: var(--rank-at-cyan-bg) !important; border-color: rgba(99, 230, 190, 0.2) !important; color: var(--rank-at-cyan) !important; }
+.rank-at-blue-bg { background-color: var(--rank-at-blue-bg) !important; border-color: rgba(116, 192, 252, 0.2) !important; color: var(--rank-at-blue) !important; }
+.rank-at-yellow-bg { background-color: var(--rank-at-yellow-bg) !important; border-color: rgba(255, 216, 168, 0.2) !important; color: var(--rank-at-yellow) !important; }
+.rank-at-orange-bg { background-color: var(--rank-at-orange-bg) !important; border-color: rgba(255, 192, 120, 0.2) !important; color: var(--rank-at-orange) !important; }
+.rank-at-red-bg { background-color: var(--rank-at-red-bg) !important; border-color: rgba(255, 160, 160, 0.2) !important; color: var(--rank-at-red) !important; }
+
+/* LeetCode Rank Colors */
+.rank-lc-guardian { color: var(--rank-lc-guardian) !important; font-weight: 700; text-shadow: 0 0 10px rgba(255, 161, 22, 0.15); }
+.rank-lc-knight { color: var(--rank-lc-knight) !important; font-weight: 600; }
+.rank-lc-standard { color: var(--rank-lc-standard) !important; font-weight: 500; }
+
+/* LeetCode Translucent Badge Backgrounds */
+.rank-lc-guardian-bg { background-color: var(--rank-lc-guardian-bg) !important; border-color: rgba(255, 161, 22, 0.2) !important; color: var(--rank-lc-guardian) !important; }
+.rank-lc-knight-bg { background-color: var(--rank-lc-knight-bg) !important; border-color: rgba(177, 151, 252, 0.2) !important; color: var(--rank-lc-knight) !important; }
+.rank-lc-standard-bg { background-color: var(--rank-lc-standard-bg) !important; border-color: rgba(173, 181, 189, 0.2) !important; color: var(--rank-lc-standard) !important; }
+
+/* Font utilities */
+.font-mono {
+  font-family: var(--font-mono) !important;
 }
 
 /* Custom Scrollbars */
@@ -378,6 +486,7 @@ h1, h2, h3, h4, h5, h6 {
   grid-template-columns: repeat(auto-fill, minmax(360px, 1fr));
   gap: 24px;
   margin-bottom: 28px;
+  align-items: start;
 }
 
 @media (max-width: 640px) {
@@ -404,6 +513,10 @@ h1, h2, h3, h4, h5, h6 {
    Warm ivory / clean white palette
    ═══════════════════════════════════════ */
 body.light-theme {
+  --logo-code-color: #1E293B;
+  /* Hero banner */
+  --hero-bg: linear-gradient(135deg, rgba(13, 148, 136, 0.06) 0%, rgba(240, 253, 250, 0.9) 100%);
+  --hero-border: rgba(13, 148, 136, 0.25);
   --bg-main: #f8fafc;
   --bg-card: rgba(255, 255, 255, 0.80);
   --bg-card-hover: rgba(255, 255, 255, 0.95);
@@ -428,6 +541,62 @@ body.light-theme {
   --info: #0ea5e9;
   --favourite: #f43f5e;
   
+  /* Unified Rank Colors (Light Theme) */
+  --rank-newbie: #6b7280;
+  --rank-pupil: #16a34a;
+  --rank-specialist: #0891b2;
+  --rank-expert: #2563eb;
+  --rank-candidate-master: #7c3aed;
+  --rank-master: #ea580c;
+  --rank-intl-master: #ea580c;
+  --rank-grandmaster: #dc2626;
+  --rank-intl-grandmaster: #b91c1c;
+  --rank-legendary: #b91c1c;
+  --rank-unrated: #1e293b;
+
+  /* AtCoder Rank Colors (Light Theme) */
+  --rank-at-grey: #6b7280;
+  --rank-at-brown: #8b4513;
+  --rank-at-green: #16a34a;
+  --rank-at-cyan: #0891b2;
+  --rank-at-blue: #2563eb;
+  --rank-at-yellow: #d97706;
+  --rank-at-orange: #ea580c;
+  --rank-at-red: #dc2626;
+
+  /* AtCoder Translucent Badge Backgrounds (Light Theme) */
+  --rank-at-grey-bg: rgba(107, 114, 128, 0.08);
+  --rank-at-brown-bg: rgba(139, 69, 19, 0.08);
+  --rank-at-green-bg: rgba(22, 163, 74, 0.08);
+  --rank-at-cyan-bg: rgba(8, 145, 178, 0.08);
+  --rank-at-blue-bg: rgba(37, 99, 235, 0.08);
+  --rank-at-yellow-bg: rgba(217, 119, 6, 0.08);
+  --rank-at-orange-bg: rgba(234, 88, 12, 0.08);
+  --rank-at-red-bg: rgba(220, 38, 38, 0.08);
+
+  /* LeetCode Rank Colors (Light Theme) */
+  --rank-lc-guardian: #d97706;
+  --rank-lc-knight: #7c3aed;
+  --rank-lc-standard: #6b7280;
+
+  /* LeetCode Translucent Badge Backgrounds (Light Theme) */
+  --rank-lc-guardian-bg: rgba(217, 119, 6, 0.08);
+  --rank-lc-knight-bg: rgba(124, 58, 237, 0.08);
+  --rank-lc-standard-bg: rgba(107, 114, 128, 0.08);
+
+  /* Translucent Badge Backgrounds (Light Theme) */
+  --rank-newbie-bg: rgba(107, 114, 128, 0.08);
+  --rank-pupil-bg: rgba(22, 163, 74, 0.08);
+  --rank-specialist-bg: rgba(8, 145, 178, 0.08);
+  --rank-expert-bg: rgba(37, 99, 235, 0.08);
+  --rank-candidate-master-bg: rgba(124, 58, 237, 0.08);
+  --rank-master-bg: rgba(234, 88, 12, 0.08);
+  --rank-intl-master-bg: rgba(234, 88, 12, 0.08);
+  --rank-grandmaster-bg: rgba(220, 38, 38, 0.08);
+  --rank-intl-grandmaster-bg: rgba(185, 28, 28, 0.08);
+  --rank-legendary-bg: rgba(185, 28, 28, 0.08);
+  --rank-unrated-bg: rgba(15, 23, 42, 0.05);
+
   --shadow-sm: 0 1px 2px 0 rgba(0, 0, 0, 0.04);
   --shadow-md: 0 4px 12px -2px rgba(0, 0, 0, 0.06), 0 2px 4px -1px rgba(0, 0, 0, 0.04);
   --shadow-lg: 0 12px 24px -4px rgba(0, 0, 0, 0.08), 0 4px 8px -2px rgba(0, 0, 0, 0.04);
@@ -450,19 +619,6 @@ body.light-theme .btn-primary {
 body.light-theme .btn-primary:hover:not(:disabled) {
   background: #4f46e5;
 }
-
-/* Light theme rank colors — high contrast on white */
-body.light-theme .rank-newbie { color: #6b7280 !important; }
-body.light-theme .rank-pupil { color: #16a34a !important; }
-body.light-theme .rank-specialist { color: #0891b2 !important; }
-body.light-theme .rank-expert { color: #2563eb !important; }
-body.light-theme .rank-candidate-master { color: #7c3aed !important; }
-body.light-theme .rank-master { color: #ea580c !important; }
-body.light-theme .rank-intl-master { color: #ea580c !important; }
-body.light-theme .rank-grandmaster { color: #dc2626 !important; }
-body.light-theme .rank-intl-grandmaster { color: #b91c1c !important; }
-body.light-theme .rank-legendary { color: #b91c1c !important; }
-body.light-theme .rank-legendary::first-letter { color: #1e293b !important; }
 
 body.light-theme .glass-card {
   box-shadow: 0 1px 3px rgba(0, 0, 0, 0.04), 0 4px 12px rgba(0, 0, 0, 0.03);

@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useMemo } from 'react';
 import { Search, RefreshCw, Layers, ClipboardList, CheckCircle } from 'lucide-react';
 import ContestCard from './ContestCard';
-import { getContestDivision } from '../utils/helpers';
+import { getContestDivision, getAtCoderDivision } from '../utils/helpers';
 
 export default function ContestList({ 
   contests = [], 
@@ -10,8 +10,10 @@ export default function ContestList({
   onStatusChange, 
   onNoteChange, 
   onFavouriteToggle,
+  onProblemOverrideChange,
   filterState,
-  setFilterState
+  setFilterState,
+  platform = 'codeforces'
 }) {
   const [pageSize, setPageSize] = useState(20);
   const [currentPage, setCurrentPage] = useState(1);
@@ -36,9 +38,12 @@ export default function ContestList({
     });
   }, [filterState]);
 
-  // Options
-  const divisions = ['All', 'Div. 1', 'Div. 2', 'Div. 3', 'Div. 4', 'Educational', 'Global Round', 'Other'];
-  const userTrackStatuses = ['All', 'Done', 'Partial Done', 'Not Done'];
+  const divisions = platform === 'codeforces' 
+    ? ['All', 'Div. 1', 'Div. 2', 'Div. 3', 'Div. 4', 'Educational', 'Global Round', 'Other'] 
+    : platform === 'atcoder' 
+      ? ['All', 'ABC (Beginner)', 'ARC (Regular)', 'AGC (Grand)', 'AHC (Heuristic)', 'Other'] 
+      : ['All', 'LeetCode Contest'];
+  const userTrackStatuses = ['All', 'Complete', 'Revisit', 'Not tried'];
   const solvedRanges = ['All', '0 Solved', '1-2 Solved', '3-4 Solved', '5+ Solved'];
 
   // Handle local filter inputs changes
@@ -70,7 +75,11 @@ export default function ContestList({
   const filteredContests = useMemo(() => {
     return contests.filter(contest => {
       const { id, name } = contest;
-      const division = getContestDivision(name);
+      const division = platform === 'codeforces' 
+        ? getContestDivision(name) 
+        : platform === 'atcoder' 
+          ? getAtCoderDivision(id, name) 
+          : 'LeetCode Contest';
       
       const uData = userContestData[id] || {};
       const subData = processedSubmissions[id] || {};
@@ -85,28 +94,41 @@ export default function ContestList({
 
       // Division
       if (filterState.division !== 'All') {
-        if (filterState.division === 'Other') {
-          const knownDivs = ['Div. 1', 'Div. 2', 'Div. 3', 'Div. 4', 'Educational', 'Global Round', 'Div. 1 + Div. 2'];
-          if (knownDivs.includes(division)) return false;
-        } else if (division !== filterState.division) {
-          if (filterState.division === 'Div. 2' && (division === 'Div. 1 + Div. 2')) {
-            // Keep
-          } else if (filterState.division === 'Div. 1' && (division === 'Div. 1 + Div. 2')) {
-            // Keep
-          } else {
+        if (platform === 'codeforces') {
+          if (filterState.division === 'Other') {
+            const knownDivs = ['Div. 1', 'Div. 2', 'Div. 3', 'Div. 4', 'Educational', 'Global Round', 'Div. 1 + Div. 2'];
+            if (knownDivs.includes(division)) return false;
+          } else if (division !== filterState.division) {
+            if (filterState.division === 'Div. 2' && (division === 'Div. 1 + Div. 2')) {
+              // Keep
+            } else if (filterState.division === 'Div. 1' && (division === 'Div. 1 + Div. 2')) {
+              // Keep
+            } else {
+              return false;
+            }
+          }
+        } else if (platform === 'atcoder') {
+          // AtCoder Division filtering
+          if (filterState.division === 'Other') {
+            const knownDivs = ['ABC (Beginner)', 'ARC (Regular)', 'AGC (Grand)', 'AHC (Heuristic)'];
+            if (knownDivs.includes(division)) return false;
+          } else if (division !== filterState.division) {
             return false;
           }
+        } else {
+          // LeetCode Division filtering
+          if (division !== filterState.division) return false;
         }
       }
 
-      // Custom User status tracking (mapped to Done, Partial Done, Not Done)
+      // Custom User status tracking (All, Complete, Revisit, Not tried)
       if (filterState.userStatus !== 'All') {
         const currentStatus = uData.status || '';
-        if (filterState.userStatus === 'Not Done') {
-          // Both empty track status AND explicitly marked as "Not Done" count here
-          if (currentStatus !== 'Not Done' && currentStatus !== '') return false;
+        if (filterState.userStatus === 'Not tried') {
+          // If status is Complete or Revisit, filter it out
+          if (currentStatus === 'Complete' || currentStatus === 'Revisit') return false;
         } else {
-          // Strict checks for Done and Partial Done
+          // Match selected status
           if (currentStatus !== filterState.userStatus) return false;
         }
       }
@@ -138,7 +160,7 @@ export default function ContestList({
  
       return true;
     });
-  }, [contests, userContestData, processedSubmissions, filterState]);
+  }, [contests, userContestData, processedSubmissions, filterState, platform]);
 
   // 3. Separate Upcoming and Finished/Past Contests
   const upcomingContests = useMemo(() => {
@@ -183,75 +205,92 @@ export default function ContestList({
           </button>
         </div>
 
-        <div style={styles.filtersGrid}>
-          {/* Division Filter */}
-          <div className="form-group" style={styles.filterGroup}>
-            <label className="form-label">
-              <Layers size={12} style={styles.labelIcon} /> Division
-            </label>
-            <select 
-              className="form-control form-select"
-              value={localFilterState.division}
-              onChange={(e) => handleLocalFilterChange('division', e.target.value)}
-            >
-              {divisions.map(d => (
-                <option key={d} value={d}>{d}</option>
-              ))}
-            </select>
+        <div className="filters-container">
+          {/* Left Group: Pill Filters */}
+          <div className="filters-group-left">
+            <div className="form-group" style={styles.filterGroup}>
+              <label className="form-label">
+                <Layers size={12} style={styles.labelIcon} /> Division
+              </label>
+              <div className="filter-pill-container">
+                {divisions.map(d => {
+                  const isActive = localFilterState.division === d;
+                  return (
+                    <button
+                      key={d}
+                      type="button"
+                      className={`filter-pill ${isActive ? 'active' : ''}`}
+                      onClick={() => handleLocalFilterChange('division', d)}
+                    >
+                      {d}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
+
+            <div className="form-group" style={styles.filterGroup}>
+              <label className="form-label">
+                <CheckCircle size={12} style={styles.labelIcon} /> User Status
+              </label>
+              <div className="filter-pill-container">
+                {userTrackStatuses.map(s => {
+                  const isActive = localFilterState.userStatus === s;
+                  return (
+                    <button
+                      key={s}
+                      type="button"
+                      className={`filter-pill ${isActive ? 'active' : ''}`}
+                      onClick={() => handleLocalFilterChange('userStatus', s)}
+                    >
+                      {s}
+                    </button>
+                  );
+                })}
+              </div>
+            </div>
           </div>
 
-          {/* User Status Filter */}
-          <div className="form-group" style={styles.filterGroup}>
-            <label className="form-label">
-              <CheckCircle size={12} style={styles.labelIcon} /> User Status
-            </label>
-            <select 
-              className="form-control form-select"
-              value={localFilterState.userStatus}
-              onChange={(e) => handleLocalFilterChange('userStatus', e.target.value)}
-            >
-              {userTrackStatuses.map(s => (
-                <option key={s} value={s}>{s}</option>
-              ))}
-            </select>
-          </div>
+          {/* Divider */}
+          <div className="filters-divider"></div>
 
-          {/* Solved Count Filter */}
-          <div className="form-group" style={styles.filterGroup}>
-            <label className="form-label">
-              <RefreshCw size={12} style={styles.labelIcon} /> Solved Tasks
-            </label>
-            <select 
-              className="form-control form-select"
-              value={localFilterState.solvedRange}
-              onChange={(e) => handleLocalFilterChange('solvedRange', e.target.value)}
-            >
-              {solvedRanges.map(r => (
-                <option key={r} value={r}>{r}</option>
-              ))}
-            </select>
-          </div>
+          {/* Right Group: Solved and Untried Filters */}
+          <div className="filters-group-right">
+            <div className="form-group" style={styles.filterGroup}>
+              <label className="form-label">
+                <RefreshCw size={12} style={styles.labelIcon} /> Solved Tasks
+              </label>
+              <select 
+                className="form-control form-select"
+                value={localFilterState.solvedRange}
+                onChange={(e) => handleLocalFilterChange('solvedRange', e.target.value)}
+              >
+                {solvedRanges.map(r => (
+                  <option key={r} value={r}>{r}</option>
+                ))}
+              </select>
+            </div>
 
-          {/* Untried Problems Filter */}
-          <div className="form-group" style={styles.filterGroup}>
-            <label className="form-label">
-              <ClipboardList size={12} style={styles.labelIcon} /> Untried Problems
-            </label>
-            <input 
-              type="text"
-              placeholder="e.g. C, D, E"
-              className="form-control"
-              style={{ ...styles.statusSelect, paddingRight: '12px' }}
-              value={localFilterState.untriedProblems}
-              onChange={(e) => handleLocalFilterChange('untriedProblems', e.target.value)}
-              onKeyDown={(e) => { if (e.key === 'Enter') handleApplyFilters(); }}
-            />
+            <div className="form-group" style={styles.filterGroup}>
+              <label className="form-label">
+                <ClipboardList size={12} style={styles.labelIcon} /> Untried Problems
+              </label>
+              <input 
+                type="text"
+                placeholder="e.g. C, D, E"
+                className="form-control font-mono"
+                style={{ ...styles.statusSelect, paddingRight: '12px' }}
+                value={localFilterState.untriedProblems}
+                onChange={(e) => handleLocalFilterChange('untriedProblems', e.target.value)}
+                onKeyDown={(e) => { if (e.key === 'Enter') handleApplyFilters(); }}
+              />
+            </div>
           </div>
         </div>
 
         <div style={styles.summaryBar}>
           <p style={styles.resultsCount}>
-            Found <strong>{filteredContests.length}</strong> matching contests
+            Found <strong className="font-mono">{filteredContests.length}</strong> matching contests
           </p>
         </div>
       </div>
@@ -285,6 +324,8 @@ export default function ContestList({
                     onStatusChange={onStatusChange}
                     onNoteChange={onNoteChange}
                     onFavouriteToggle={onFavouriteToggle}
+                    onProblemOverrideChange={onProblemOverrideChange}
+                    platform={platform}
                   />
                 ))}
               </div>
@@ -306,6 +347,8 @@ export default function ContestList({
                       onStatusChange={onStatusChange}
                       onNoteChange={onNoteChange}
                       onFavouriteToggle={onFavouriteToggle}
+                      onProblemOverrideChange={onProblemOverrideChange}
+                      platform={platform}
                     />
                   ))}
                 </div>
@@ -340,7 +383,7 @@ export default function ContestList({
                     </button>
                     
                     <span style={styles.pageInfo}>
-                      Page <strong>{currentPage}</strong> of <strong>{totalPages}</strong>
+                      Page <strong className="font-mono">{currentPage}</strong> of <strong className="font-mono">{totalPages}</strong>
                     </span>
 
                     <button 
@@ -384,8 +427,8 @@ const styles = {
     display: 'flex',
     flexDirection: 'column',
     gap: '20px',
-    background: 'rgba(22, 28, 45, 0.6)',
-    borderColor: 'var(--border-color)',
+    background: 'var(--hero-bg)',
+    borderColor: 'var(--hero-border)',
     padding: '24px',
     textAlign: 'left',
     marginBottom: '28px',

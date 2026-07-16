@@ -58,3 +58,33 @@ export const MOCK_SUBMISSIONS = [
   { id: 200035, contestId: 1950, creationTimeSeconds: 1711642500, relativeTimeSeconds: 2400, verdict: 'OK', problem: { index: 'E', name: 'Problem E' }, author: { participantType: 'CONTESTANT' } },
   { id: 200036, contestId: 1950, creationTimeSeconds: 1711643000, relativeTimeSeconds: 2900, verdict: 'OK', problem: { index: 'F', name: 'Problem F' }, author: { participantType: 'CONTESTANT' } }
 ];
+
+export const MOCK_ATCODER_CONTESTS = [
+  { id: 'abc358', name: 'AtCoder Beginner Contest 358', type: 'AtCoder', phase: 'FINISHED', frozen: false, durationSeconds: 6000, startTimeSeconds: 1718458800 },
+  { id: 'abc352', name: 'AtCoder Beginner Contest 352', type: 'AtCoder', phase: 'FINISHED', frozen: false, durationSeconds: 6000, startTimeSeconds: 1714826400 },
+  { id: 'abc351', name: 'AtCoder Beginner Contest 351', type: 'AtCoder', phase: 'FINISHED', frozen: false, durationSeconds: 6000, startTimeSeconds: 1714221600 },
+  { id: 'arc175', name: 'AtCoder Regular Contest 175', type: 'AtCoder', phase: 'FINISHED', frozen: false, durationSeconds: 7200, startTimeSeconds: 1711285200 },
+  { id: 'agc065', name: 'AtCoder Grand Contest 065', type: 'AtCoder', phase: 'FINISHED', frozen: false, durationSeconds: 10800, startTimeSeconds: 1702818000 }
+];
+
+export const MOCK_ATCODER_RATING_HISTORY = [
+  { contestId: 'agc065', contestName: 'AtCoder Grand Contest 065', rank: 450, ratingUpdateTimeSeconds: 1702818000, oldRating: 1500, newRating: 1580 },
+  { contestId: 'arc175', contestName: 'AtCoder Regular Contest 175', rank: 320, ratingUpdateTimeSeconds: 1711285200, oldRating: 1580, newRating: 1650 },
+  { contestId: 'abc351', contestName: 'AtCoder Beginner Contest 351', rank: 110, ratingUpdateTimeSeconds: 1714221600, oldRating: 1650, newRating: 1790 },
+  { contestId: 'abc352', contestName: 'AtCoder Beginner Contest 352', rank: 80, ratingUpdateTimeSeconds: 1714826400, oldRating: 1790, newRating: 1910 },
+  { contestId: 'abc358', contestName: 'AtCoder Beginner Contest 358', rank: 45, ratingUpdateTimeSeconds: 1718458800, oldRating: 1910, newRating: 2050 }
+];
+
+export const MOCK_LEETCODE_CONTESTS = [
+  { id: 'weekly-contest-400', name: 'Weekly Contest 400', type: 'LeetCode', phase: 'FINISHED', durationSeconds: 5400, startTimeSeconds: 1717293600, problemsSolved: 3, totalProblems: 4 },
+  { id: 'biweekly-contest-130', name: 'Biweekly Contest 130', type: 'LeetCode', phase: 'FINISHED', durationSeconds: 5400, startTimeSeconds: 1715439600, problemsSolved: 4, totalProblems: 4 },
+  { id: 'weekly-contest-390', name: 'Weekly Contest 390', type: 'LeetCode', phase: 'FINISHED', durationSeconds: 5400, startTimeSeconds: 1710640800, problemsSolved: 2, totalProblems: 4 },
+  { id: 'weekly-contest-380', name: 'Weekly Contest 380', type: 'LeetCode', phase: 'FINISHED', durationSeconds: 5400, startTimeSeconds: 1704592800, problemsSolved: 1, totalProblems: 4 }
+];
+
+export const MOCK_LEETCODE_RATING_HISTORY = [
+  { contestId: 'weekly-contest-380', contestName: 'Weekly Contest 380', rank: 12050, ratingUpdateTimeSeconds: 1704592800, oldRating: 1500, newRating: 1475, problemsSolved: 1, totalProblems: 4 },
+  { contestId: 'weekly-contest-390', contestName: 'Weekly Contest 390', rank: 4500, ratingUpdateTimeSeconds: 1710640800, oldRating: 1475, newRating: 1585, problemsSolved: 2, totalProblems: 4 },
+  { contestId: 'biweekly-contest-130', contestName: 'Biweekly Contest 130', rank: 850, ratingUpdateTimeSeconds: 1715439600, oldRating: 1585, newRating: 1750, problemsSolved: 4, totalProblems: 4 },
+  { contestId: 'weekly-contest-400', contestName: 'Weekly Contest 400', rank: 2300, ratingUpdateTimeSeconds: 1717293600, oldRating: 1750, newRating: 1820, problemsSolved: 3, totalProblems: 4 }
+];

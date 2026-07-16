@@ -3,9 +3,11 @@ import {
   ExternalLink, 
   Star, 
   Notebook, 
-  Save
+  Save,
+  Maximize2,
+  Minimize2
 } from 'lucide-react';
-import { formatUnixDate, getContestDivision } from '../utils/helpers';
+import { formatUnixDate, getContestDivision, getAtCoderDivision } from '../utils/helpers';
 
 export default function ContestCard({ 
   contest, 
@@ -13,7 +15,9 @@ export default function ContestCard({
   submissionData = {}, 
   onStatusChange, 
   onNoteChange, 
-  onFavouriteToggle 
+  onFavouriteToggle,
+  onProblemOverrideChange = () => {},
+  platform = 'codeforces'
 }) {
   const { id, name, startTimeSeconds, durationSeconds, phase } = contest;
   
@@ -22,6 +26,10 @@ export default function ContestCard({
   const [isSaved, setIsSaved] = useState(false);
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+
+  const handleSelectOverride = (problemIndex, val) => {
+    onProblemOverrideChange(id, problemIndex, val);
+  };
   
   const saveTimeoutRef = useRef(null);
 
@@ -56,35 +64,30 @@ export default function ContestCard({
     setTimeout(() => setIsSaved(false), 2000);
   };
 
-  // Toggle card expansion (show/hide notes) unless clicking interactive elements
-  const handleCardClick = (e) => {
-    const tag = e.target.tagName.toLowerCase();
-    if (
-      tag === 'select' || 
-      tag === 'option' || 
-      tag === 'button' || 
-      tag === 'a' || 
-      tag === 'textarea' || 
-      e.target.closest('button') || 
-      e.target.closest('a')
-    ) {
-      return;
-    }
-    setIsExpanded(!isExpanded);
-  };
 
-  const division = getContestDivision(name);
+
+  const division = platform === 'codeforces' 
+    ? getContestDivision(name) 
+    : platform === 'atcoder' 
+      ? getAtCoderDivision(id, name) 
+      : 'LeetCode Contest';
 
   // Status lists
   const STATUS_OPTIONS = [
-    'None',
-    'Done',
-    'Partial Done',
-    'Not Done'
+    'Not tried',
+    'Complete',
+    'Revisit'
   ];
 
   // Helper to resolve problem indices based on division
   const getProblemIndices = (div) => {
+    if (platform === 'leetcode') {
+      return ['Q1', 'Q2', 'Q3', 'Q4'];
+    }
+    if (platform === 'atcoder') {
+      if (div === 'ABC (Beginner)') return ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+      return ['A', 'B', 'C', 'D', 'E', 'F'];
+    }
     if (div === 'Div. 4') return ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
     if (div === 'Div. 3') return ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
     return ['A', 'B', 'C', 'D', 'E', 'F'];
@@ -93,97 +96,214 @@ export default function ContestCard({
   const problemIndices = getProblemIndices(division);
   const solvedProblems = submissionData.solvedProblems || [];
   const attemptedProblems = submissionData.attemptedProblems || [];
+  const problemOverrides = userData.problemOverrides || {};
+  const hasProblemOverrides = Object.keys(problemOverrides).length > 0;
 
   // Track state is active if any user activity exists
   const isTracked = 
-    (userData.status && userData.status !== 'None' && userData.status !== '') ||
+    (userData.status && userData.status !== 'Not tried' && userData.status !== '') ||
     (userData.note && userData.note.trim() !== '') ||
     userData.favourite ||
+    hasProblemOverrides ||
     (submissionData.totalAttempted && submissionData.totalAttempted > 0);
+
+  const getStatusBorderColor = () => {
+    if (phase === 'BEFORE') return 'var(--warning)';
+    if (userData.status === 'Complete') return 'var(--success)';
+    if (userData.status === 'Revisit') return 'var(--danger)';
+    return 'var(--border-color)';
+  };
+
+  const getSolidBgColor = () => {
+    const isLight = document.body.classList.contains('light-theme');
+    if (userData.favourite) {
+      return isLight ? '#fffbeb' : '#232018';
+    }
+    if (isTracked) {
+      return isLight ? '#e6fcf5' : '#14251f';
+    }
+    return 'var(--bg-card-solid)';
+  };
+
+  const cardClassName = `glass-card animate-fade-in ${
+    isExpanded 
+      ? '' 
+      : `${userData.favourite ? 'favourite-card' : ''} ${isTracked ? 'tracked-card' : ''}`
+  }`;
 
   return (
     <div 
-      className={`glass-card animate-fade-in ${userData.favourite ? 'favourite-card' : ''} ${isTracked ? 'tracked-card' : ''}`} 
-      style={{ ...styles.card, cursor: 'pointer' }}
-      onClick={handleCardClick}
+      className={cardClassName}
+      style={{ 
+        ...styles.card, 
+        borderLeft: `4px solid ${getStatusBorderColor()}`,
+        zIndex: isExpanded ? 200 : 1,
+        ...(isExpanded ? { 
+          borderBottomLeftRadius: 0, 
+          borderBottomRightRadius: 0,
+          background: getSolidBgColor(),
+          borderColor: userData.favourite 
+            ? 'rgba(251, 191, 36, 0.45)' 
+            : isTracked 
+              ? 'rgba(52, 211, 153, 0.45)' 
+              : 'var(--border-color)',
+          boxShadow: userData.favourite 
+            ? '0 0 24px rgba(251, 191, 36, 0.12)' 
+            : isTracked 
+              ? '0 0 24px rgba(52, 211, 153, 0.12)' 
+              : 'var(--shadow-md)'
+        } : {})
+      }}
     >
-      {/* Card Header: Title & Star Button */}
-      <div style={styles.cardHeader}>
-        <div style={styles.titleSection}>
-          <div style={{ display: 'flex', gap: '6px', alignItems: 'center', flexWrap: 'wrap', marginBottom: '8px' }}>
-            <span className={`badge ${getDivisionBadgeClass(division)}`} style={styles.divBadge}>
-              {division}
+      {/* Top Row: Division Badges & Favorite Star Button */}
+      <div style={styles.topHeaderRow}>
+        <div style={styles.badgesWrapper}>
+          <span className={`badge ${getDivisionBadgeClass(division)}`} style={styles.divBadge}>
+            {division}
+          </span>
+          {phase === 'BEFORE' && (
+            <span className="badge" style={{ ...styles.divBadge, backgroundColor: 'rgba(251, 191, 36, 0.12)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.22)' }}>
+              Upcoming
             </span>
-            {phase === 'BEFORE' && (
-              <span className="badge" style={{ ...styles.divBadge, backgroundColor: 'rgba(251, 191, 36, 0.12)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.22)' }}>
-                Upcoming
-              </span>
-            )}
-            {phase === 'CODING' && (
-              <span className="badge" style={{ ...styles.divBadge, backgroundColor: 'rgba(248, 113, 113, 0.12)', color: '#f87171', border: '1px solid rgba(248, 113, 113, 0.22)' }}>
-                Live
-              </span>
-            )}
-          </div>
-          <h3 style={styles.contestName} title={name}>
-            {name}
-          </h3>
-          <div style={styles.dateAndLink}>
-            <span style={styles.dateText}>{formatUnixDate(startTimeSeconds)}</span>
-            <span style={styles.bullet}>•</span>
-            <span style={styles.durationText}>{formatDuration(durationSeconds)}</span>
-            <span style={styles.bullet}>•</span>
-            <a 
-              href={phase === 'BEFORE' ? 'https://codeforces.com/contests' : `https://codeforces.com/contest/${id}`} 
-              target="_blank" 
-              rel="noopener noreferrer" 
-              style={styles.cfLink}
-            >
-              {phase === 'BEFORE' ? 'Register / View Schedule' : 'Open Codeforces'}
-              <ExternalLink size={12} style={{ marginLeft: 3 }} />
-            </a>
-          </div>
+          )}
+          {phase === 'CODING' && (
+            <span className="badge" style={{ ...styles.divBadge, backgroundColor: 'rgba(248, 113, 113, 0.12)', color: '#f87171', border: '1px solid rgba(248, 113, 113, 0.22)' }}>
+              Live
+            </span>
+          )}
+          {userData.status && userData.status !== 'None' && (
+            <span className={`badge ${getStatusBadgeClass(userData.status)}`} style={styles.divBadge}>
+              {userData.status}
+            </span>
+          )}
         </div>
         
-        <button 
-          onClick={() => onFavouriteToggle(id)} 
-          style={{ 
-            ...styles.favBtn, 
-            color: userData.favourite ? 'var(--favourite)' : 'var(--color-text-muted)' 
-          }}
-          title={userData.favourite ? 'Remove from Favourites' : 'Add to Favourites'}
-        >
-          <Star size={20} fill={userData.favourite ? 'var(--favourite)' : 'transparent'} />
-        </button>
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          <button 
+            onClick={(e) => {
+              e.stopPropagation();
+              onFavouriteToggle(id);
+            }} 
+            style={{ 
+              ...styles.favBtn, 
+              color: userData.favourite ? 'var(--favourite)' : 'var(--color-text-muted)' 
+            }}
+            title={userData.favourite ? 'Remove from Favourites' : 'Add to Favourites'}
+          >
+            <Star size={16} fill={userData.favourite ? 'var(--favourite)' : 'transparent'} />
+          </button>
+          
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              setIsExpanded(!isExpanded);
+            }}
+            className="contest-card-expand-btn"
+            style={styles.expandBtn}
+            title={isExpanded ? 'Minimize notes and overrides' : 'Expand notes and overrides'}
+          >
+            {isExpanded ? <Minimize2 size={16} /> : <Maximize2 size={16} />}
+          </button>
+        </div>
+      </div>
+
+      {/* Main Info Section (Title & Metadata) */}
+      <div style={styles.titleSection}>
+        <h3 style={styles.contestName} title={name}>
+          {name}
+        </h3>
+        <div style={styles.dateAndLink}>
+          <span className="font-mono" style={styles.dateText}>{formatUnixDate(startTimeSeconds)}</span>
+          <span style={styles.bullet}>•</span>
+          <span className="font-mono" style={styles.durationText}>{formatDuration(durationSeconds)}</span>
+          <span style={styles.bullet}>•</span>
+          <a 
+            href={platform === 'codeforces' 
+              ? (phase === 'BEFORE' ? 'https://codeforces.com/contests' : `https://codeforces.com/contest/${id}`)
+              : platform === 'atcoder'
+                ? (phase === 'BEFORE' ? 'https://atcoder.jp/contests' : `https://atcoder.jp/contests/${id}`)
+                : `https://leetcode.com/contest/${id}`
+            } 
+            target="_blank" 
+            rel="noopener noreferrer" 
+            style={styles.cfLink}
+          >
+            {platform === 'codeforces' 
+              ? (phase === 'BEFORE' ? 'Register / View Schedule' : 'Open Codeforces')
+              : platform === 'atcoder'
+                ? (phase === 'BEFORE' ? 'Register / View Schedule' : 'Open AtCoder')
+                : 'Open LeetCode'
+            }
+            <ExternalLink size={12} style={{ marginLeft: 3 }} />
+          </a>
+        </div>
       </div>
 
       {/* Middle row: Problems row & Track status selector */}
       <div style={styles.middleRow}>
         <div style={styles.problemsListContainer}>
           {problemIndices.map(idx => {
-            const isSolved = solvedProblems.includes(idx) || 
+            const problemOverrides = userData.problemOverrides || {};
+            const override = problemOverrides[idx]; // 'solved', 'attempted', or undefined
+            
+            let isSolved = solvedProblems.includes(idx) || 
                              solvedProblems.some(p => p.toUpperCase() === idx.toUpperCase());
-            const isAttempted = attemptedProblems.includes(idx) || 
+            let isAttempted = attemptedProblems.includes(idx) || 
                                 attemptedProblems.some(p => p.toUpperCase().startsWith(idx.toUpperCase()));
             
-            let badgeClass = "problem-badge problem-badge-default";
-            let title = `Problem ${idx} (Not Tried)`;
-            if (isSolved) {
-              badgeClass = "problem-badge problem-badge-solved";
-              title = `Problem ${idx} (Solved)`;
+            if (override === 'solved') {
+              isSolved = true;
+              isAttempted = false;
+            } else if (override === 'attempted') {
+              isSolved = false;
+              isAttempted = true;
+            }
+
+            const problemMeta = contest.problems?.find(p => p.index === idx);
+            let tooltip = `Problem ${idx} (Not Tried)`;
+            let hrefUrl = platform === 'codeforces'
+              ? (phase === 'BEFORE' ? 'https://codeforces.com/contests' : `https://codeforces.com/contest/${id}/problem/${idx}`)
+              : platform === 'atcoder'
+                ? (phase === 'BEFORE' ? 'https://atcoder.jp/contests' : `https://atcoder.jp/contests/${id}/tasks/${id}_${idx.toLowerCase()}`)
+                : (problemMeta?.titleSlug ? `https://leetcode.com/problems/${problemMeta.titleSlug}` : `https://leetcode.com/contest/${id}`);
+
+            if (problemMeta) {
+              tooltip = `${idx}: ${problemMeta.title}${problemMeta.rating ? ` (Rating: ${problemMeta.rating})` : ''} - Not Tried`;
+            }
+
+            let badgeClass = "problem-badge problem-badge-default font-mono";
+            if (override) {
+              if (override === 'solved') {
+                badgeClass = "problem-badge problem-badge-solved font-mono";
+                tooltip = problemMeta 
+                  ? `${idx}: ${problemMeta.title}${problemMeta.rating ? ` (Rating: ${problemMeta.rating})` : ''} - Marked Solved`
+                  : `Problem ${idx} (Marked Solved)`;
+              } else {
+                badgeClass = "problem-badge problem-badge-attempted font-mono";
+                tooltip = problemMeta 
+                  ? `${idx}: ${problemMeta.title}${problemMeta.rating ? ` (Rating: ${problemMeta.rating})` : ''} - Marked Attempted`
+                  : `Problem ${idx} (Marked Attempted)`;
+              }
+            } else if (isSolved) {
+              badgeClass = "problem-badge problem-badge-solved font-mono";
+              tooltip = problemMeta 
+                ? `${idx}: ${problemMeta.title}${problemMeta.rating ? ` (Rating: ${problemMeta.rating})` : ''} - Solved`
+                : `Problem ${idx} (Solved)`;
             } else if (isAttempted) {
-              badgeClass = "problem-badge problem-badge-attempted";
-              title = `Problem ${idx} (Attempted but not solved)`;
+              badgeClass = "problem-badge problem-badge-attempted font-mono";
+              tooltip = problemMeta 
+                ? `${idx}: ${problemMeta.title}${problemMeta.rating ? ` (Rating: ${problemMeta.rating})` : ''} - Attempted`
+                : `Problem ${idx} (Attempted)`;
             }
 
             return (
               <a 
                 key={idx}
-                href={phase === 'BEFORE' ? 'https://codeforces.com/contests' : `https://codeforces.com/contest/${id}/problem/${idx}`}
+                href={hrefUrl}
                 target="_blank"
                 rel="noopener noreferrer"
                 className={badgeClass}
-                title={title}
+                title={tooltip}
               >
                 {idx}
               </a>
@@ -195,8 +315,8 @@ export default function ContestCard({
           <select 
             className="form-control form-select"
             style={styles.statusSelect}
-            value={userData.status || 'None'}
-            onChange={(e) => onStatusChange(id, e.target.value === 'None' ? '' : e.target.value)}
+            value={userData.status || 'Not tried'}
+            onChange={(e) => onStatusChange(id, e.target.value === 'Not tried' ? '' : e.target.value)}
           >
             {STATUS_OPTIONS.map(opt => (
               <option key={opt} value={opt}>{opt}</option>
@@ -207,32 +327,113 @@ export default function ContestCard({
 
       {/* Accordion Expandable Notes Row */}
       {isExpanded && (
-        <div style={styles.notesRow}>
-          <div style={styles.notesHeader}>
-            <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-              <Notebook size={14} color="var(--color-text-secondary)" />
-              <span style={styles.notesTitle}>Personal Notes</span>
+        <div 
+          style={{
+            ...styles.notesRow,
+            border: `1px solid ${
+              userData.favourite 
+                ? 'rgba(251, 191, 36, 0.45)' 
+                : isTracked 
+                  ? 'rgba(52, 211, 153, 0.45)' 
+                  : 'var(--border-color)'
+            }`,
+            borderTop: 'none',
+            background: getSolidBgColor(),
+          }}
+        >
+          {/* Subsection A: Personal Notes */}
+          <div style={{ marginBottom: '16px' }}>
+            <div style={styles.notesHeader}>
+              <div style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                <Notebook size={14} color="var(--color-text-secondary)" />
+                <span style={styles.notesTitle}>Personal Notes</span>
+              </div>
+              <div style={styles.saveStatus}>
+                {isSaved && <span style={styles.savedBadge}>Saved</span>}
+                <button 
+                  onClick={handleManualSave} 
+                  style={styles.saveIconBtn} 
+                  title="Save Note Now"
+                >
+                  <Save size={12} />
+                </button>
+              </div>
             </div>
-            <div style={styles.saveStatus}>
-              {isSaved && <span style={styles.savedBadge}>Saved</span>}
-              <button 
-                onClick={handleManualSave} 
-                style={styles.saveIconBtn} 
-                title="Save Note Now"
-              >
-                <Save size={12} />
-              </button>
+            <textarea
+              style={styles.notesTextarea}
+              placeholder="e.g. Upsolved problem C, need to implement segment tree. Loved problem B!"
+              value={note}
+              onChange={handleNoteChange}
+              onFocus={() => setIsEditingNote(true)}
+              onBlur={() => setIsEditingNote(false)}
+              rows={2}
+            />
+          </div>
+
+          {/* Subsection B: Problem Status Overrides */}
+          <div style={styles.overrideSection}>
+            <span style={styles.overrideTitle}>Problem Status Overrides (Click to color manually)</span>
+            <div style={platform === 'leetcode' ? { ...styles.overrideGrid, flexDirection: 'column', alignItems: 'stretch', gap: '8px' } : styles.overrideGrid}>
+              {problemIndices.map(idx => {
+                const problemOverrides = userData.problemOverrides || {};
+                const currentOverride = problemOverrides[idx] || 'default'; // 'solved', 'attempted', or 'default'
+                
+                const problemMeta = contest.problems?.find(p => p.index === idx);
+                const problemText = problemMeta 
+                  ? `${idx}: ${problemMeta.title} ${problemMeta.rating ? `[★ ${problemMeta.rating}]` : ''}`
+                  : idx;
+
+                return (
+                  <div key={idx} style={platform === 'leetcode' ? { ...styles.overrideItem, justifyContent: 'space-between', width: '100%' } : styles.overrideItem}>
+                    <span className="font-mono" style={platform === 'leetcode' ? { ...styles.overrideLabel, width: 'auto', flex: 1, textAlign: 'left', marginRight: '16px', textOverflow: 'ellipsis', overflow: 'hidden', whiteSpace: 'nowrap' } : styles.overrideLabel} title={problemMeta?.title || idx}>
+                      {problemText}
+                    </span>
+                    <div style={styles.overridePillGroup}>
+                      <button
+                        onClick={() => handleSelectOverride(idx, 'default')}
+                        style={{
+                          ...styles.overridePillBtn,
+                          backgroundColor: currentOverride === 'default' ? 'var(--color-text-muted)' : 'rgba(255,255,255,0.03)',
+                          color: currentOverride === 'default' ? 'var(--color-bg)' : 'var(--color-text-secondary)',
+                          border: currentOverride === 'default' ? '1px solid transparent' : '1px solid var(--border-color)',
+                          fontWeight: currentOverride === 'default' ? '600' : 'normal'
+                        }}
+                        title="Auto (Reset to submissions)"
+                      >
+                        Auto
+                      </button>
+                      <button
+                        onClick={() => handleSelectOverride(idx, 'solved')}
+                        style={{
+                          ...styles.overridePillBtn,
+                          backgroundColor: currentOverride === 'solved' ? 'var(--success)' : 'rgba(255,255,255,0.03)',
+                          color: currentOverride === 'solved' ? '#ffffff' : 'var(--color-text-secondary)',
+                          border: currentOverride === 'solved' ? '1px solid transparent' : '1px solid var(--border-color)',
+                          fontWeight: currentOverride === 'solved' ? '600' : 'normal'
+                        }}
+                        title="Solved (Green)"
+                      >
+                        AC
+                      </button>
+                      <button
+                        onClick={() => handleSelectOverride(idx, 'attempted')}
+                        style={{
+                          ...styles.overridePillBtn,
+                          backgroundColor: currentOverride === 'attempted' ? 'var(--danger)' : 'rgba(255,255,255,0.03)',
+                          color: currentOverride === 'attempted' ? '#ffffff' : 'var(--color-text-secondary)',
+                          border: currentOverride === 'attempted' ? '1px solid transparent' : '1px solid var(--border-color)',
+                          fontWeight: currentOverride === 'attempted' ? '600' : 'normal'
+                        }}
+                        title="Attempted (Red)"
+                      >
+                        WA
+                      </button>
+                    </div>
+                  </div>
+                );
+              })}
             </div>
           </div>
-          <textarea
-            style={styles.notesTextarea}
-            placeholder="e.g. Upsolved problem C, need to implement segment tree. Loved problem B!"
-            value={note}
-            onChange={handleNoteChange}
-            onFocus={() => setIsEditingNote(true)}
-            onBlur={() => setIsEditingNote(false)}
-            rows={2}
-          />
         </div>
       )}
     </div>
@@ -248,6 +449,25 @@ function getDivisionBadgeClass(division) {
     case 'Div. 4': return 'badge-success';
     case 'Educational': return 'badge-info';
     case 'Global Round': return 'badge-primary';
+    case 'ABC (Beginner)': return 'badge-success';
+    case 'ARC (Regular)': return 'badge-warning';
+    case 'AGC (Grand)': return 'badge-danger';
+    case 'AHC (Heuristic)': return 'badge-info';
+    default: return 'badge-neutral';
+  }
+}
+
+function getStatusBadgeClass(status) {
+  switch (status) {
+    case 'Plan to Attend': return 'badge-info';
+    case 'Attended': return 'badge-primary';
+    case 'Need to Upsolve': return 'badge-danger';
+    case 'Upsolving': return 'badge-warning';
+    case 'Completed': return 'badge-success';
+    case 'Done': return 'badge-success';
+    case 'Partial Done': return 'badge-warning';
+    case 'Not Done': return 'badge-danger';
+    case 'Skipped': return 'badge-neutral';
     default: return 'badge-neutral';
   }
 }
@@ -263,18 +483,25 @@ const styles = {
   card: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '16px',
+    gap: '12px',
     background: 'var(--bg-card)',
     borderColor: 'var(--border-color)',
     padding: '20px',
     textAlign: 'left',
     position: 'relative',
   },
-  cardHeader: {
+  topHeaderRow: {
     display: 'flex',
     justifyContent: 'space-between',
-    alignItems: 'flex-start',
-    gap: '16px',
+    alignItems: 'center',
+    width: '100%',
+    marginBottom: '4px',
+  },
+  badgesWrapper: {
+    display: 'flex',
+    gap: '6px',
+    alignItems: 'center',
+    flexWrap: 'wrap',
   },
   titleSection: {
     display: 'flex',
@@ -360,10 +587,24 @@ const styles = {
   notesRow: {
     display: 'flex',
     flexDirection: 'column',
-    gap: '6px',
+    gap: '12px',
     borderTop: '1px solid var(--border-color)',
     paddingTop: '14px',
     marginTop: '4px',
+    position: 'absolute',
+    left: '-1px',
+    right: '-1px',
+    top: 'calc(100% - 1px)',
+    zIndex: 100,
+    background: 'var(--bg-card)',
+    backdropFilter: 'var(--backdrop-blur)',
+    WebkitBackdropFilter: 'var(--backdrop-blur)',
+    border: '1px solid var(--border-color)',
+    borderTop: 'none',
+    borderBottomLeftRadius: '16px',
+    borderBottomRightRadius: '16px',
+    padding: '20px',
+    boxShadow: '0 12px 30px rgba(0, 0, 0, 0.4)',
   },
   notesHeader: {
     display: 'flex',
@@ -410,5 +651,70 @@ const styles = {
     resize: 'vertical',
     outline: 'none',
     transition: 'border-color var(--transition-fast)',
+  },
+  overrideSection: {
+    borderTop: '1px solid var(--border-color)',
+    paddingTop: '14px',
+    display: 'flex',
+    flexDirection: 'column',
+    gap: '8px'
+  },
+  overrideTitle: {
+    fontSize: '0.78rem',
+    fontWeight: '600',
+    color: 'var(--color-text-secondary)',
+    textTransform: 'uppercase',
+    letterSpacing: '0.05em'
+  },
+  overrideGrid: {
+    display: 'flex',
+    flexWrap: 'wrap',
+    gap: '12px 16px',
+    alignItems: 'center'
+  },
+  overrideItem: {
+    display: 'flex',
+    alignItems: 'center',
+    gap: '8px',
+    background: 'rgba(255, 255, 255, 0.02)',
+    padding: '4px 8px',
+    borderRadius: '8px',
+    border: '1px solid var(--border-color)'
+  },
+  overrideLabel: {
+    fontSize: '0.85rem',
+    fontWeight: '700',
+    color: 'var(--color-text-primary)',
+    minWidth: '14px',
+    textAlign: 'center'
+  },
+  overridePillGroup: {
+    display: 'flex',
+    gap: '2px',
+    background: 'rgba(255, 255, 255, 0.03)',
+    borderRadius: '14px',
+    padding: '2px'
+  },
+  overridePillBtn: {
+    border: 'none',
+    padding: '3px 8px',
+    fontSize: '0.68rem',
+    cursor: 'pointer',
+    borderRadius: '12px',
+    transition: 'all 0.2s ease',
+    outline: 'none'
+  },
+  expandBtn: {
+    background: 'none',
+    border: 'none',
+    cursor: 'pointer',
+    padding: '4px',
+    borderRadius: '4px',
+    display: 'flex',
+    alignItems: 'center',
+    justifyContent: 'center',
+    color: 'var(--color-text-muted)',
+    transition: 'all var(--transition-fast)',
+    outline: 'none',
   }
 };

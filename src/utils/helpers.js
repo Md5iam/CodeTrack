@@ -10,6 +10,16 @@ export function getContestDivision(name) {
   return 'Other';
 }
 
+export function getAtCoderDivision(id, title) {
+  if (!id) return 'Other';
+  const upperId = id.toString().toUpperCase();
+  if (upperId.startsWith('ABC')) return 'ABC (Beginner)';
+  if (upperId.startsWith('ARC')) return 'ARC (Regular)';
+  if (upperId.startsWith('AGC')) return 'AGC (Grand)';
+  if (upperId.startsWith('AHC')) return 'AHC (Heuristic)';
+  return 'Other';
+}
+
 export function formatUnixDate(timestamp) {
   if (!timestamp) return 'N/A';
   const date = new Date(timestamp * 1000);
@@ -118,6 +128,94 @@ export function processContestSubmissions(submissions = [], ratingHistory = [], 
   return processed;
 }
 
+export function processAtCoderSubmissions(submissions = [], ratingHistory = [], contestsList = []) {
+  // 1. Group submissions by contest_id
+  const contestSubmissions = {};
+  submissions.forEach(sub => {
+    const cid = sub.contest_id;
+    if (!cid) return;
+    if (!contestSubmissions[cid]) {
+      contestSubmissions[cid] = [];
+    }
+    contestSubmissions[cid].push(sub);
+  });
+
+  // 2. Identify official contests from ratingHistory
+  const officialContests = new Set();
+  ratingHistory.forEach(r => {
+    if (r.contestId) officialContests.add(r.contestId);
+  });
+
+  // 3. Create a map of contests by id for quick duration lookup
+  const contestDurations = {};
+  contestsList.forEach(c => {
+    contestDurations[c.id] = c.durationSeconds || 7200;
+  });
+
+  const processed = {};
+
+  Object.keys(contestSubmissions).forEach(cid => {
+    const subs = contestSubmissions[cid];
+    const duration = contestDurations[cid] || 7200;
+
+    const attempted = new Set();
+    const solvedDuring = new Set();
+    const solvedTotal = new Set();
+
+    let hasPractice = false;
+    let hasOfficialSub = false;
+
+    const contest = contestsList.find(c => c.id === cid);
+    const startEpoch = contest ? contest.startTimeSeconds : 0;
+    const endEpoch = contest ? startEpoch + duration : 0;
+
+    subs.forEach(sub => {
+      const parts = sub.problem_id.split('_');
+      const pIndex = parts.pop().toUpperCase();
+      attempted.add(pIndex);
+
+      const isAC = sub.result === 'AC';
+      
+      if (startEpoch > 0) {
+        if (sub.epoch_second >= startEpoch && sub.epoch_second <= endEpoch) {
+          hasOfficialSub = true;
+          if (isAC) {
+            solvedDuring.add(pIndex);
+          }
+        } else {
+          hasPractice = true;
+        }
+      } else {
+        hasPractice = true;
+      }
+
+      if (isAC) {
+        solvedTotal.add(pIndex);
+      }
+    });
+
+    let participation = 'NONE';
+    if (officialContests.has(cid) || hasOfficialSub) {
+      participation = 'OFFICIAL';
+    } else if (hasPractice || subs.length > 0) {
+      participation = 'PRACTICE';
+    }
+
+    processed[cid] = {
+      participation,
+      solvedDuring: solvedDuring.size,
+      solvedAfter: Math.max(0, solvedTotal.size - solvedDuring.size),
+      totalSolved: solvedTotal.size,
+      totalAttempted: attempted.size,
+      attemptedProblems: Array.from(attempted),
+      solvedProblems: Array.from(solvedTotal),
+      solvedDuringProblems: Array.from(solvedDuring)
+    };
+  });
+
+  return processed;
+}
+
 export function calculateDashboardStats(userInfo, ratingHistory = [], processedSubmissions = {}, userContestData = {}) {
   const currentRating = userInfo?.rating || 0;
   const maxRating = userInfo?.maxRating || 0;
@@ -139,16 +237,16 @@ export function calculateDashboardStats(userInfo, ratingHistory = [], processedS
       uniqueSolvedProblems.add(`${cid}-${pIndex}`);
     });
   });
-  const totalUniqueSolved = uniqueSolvedProblems.size;
+  const totalUniqueSolved = userInfo?.solvedStats?.total || uniqueSolvedProblems.size;
 
   // Completed & Needing Upsolving contests
   let completedContests = 0;
   let needUpsolvingContests = 0;
 
   Object.values(userContestData).forEach(data => {
-    if (data.status === 'Done') {
+    if (data.status === 'Complete') {
       completedContests++;
-    } else if (data.status === 'Partial Done' || data.status === 'Not Done') {
+    } else if (data.status === 'Revisit') {
       needUpsolvingContests++;
     }
   });
@@ -164,7 +262,9 @@ export function calculateDashboardStats(userInfo, ratingHistory = [], processedS
     totalVirtual,
     totalUniqueSolved,
     completedContests,
-    needUpsolvingContests
+    needUpsolvingContests,
+    ratingHistory,
+    solvedBreakdown: userInfo?.solvedStats || null
   };
 }
 
