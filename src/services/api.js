@@ -150,16 +150,10 @@ export function getAtCoderRank(rating) {
 
 export async function fetchAtCoderUserRating(handle) {
   const path = `/users/${encodeURIComponent(handle)}/history/json`;
-  
-  if (isLocal) {
-    const response = await fetch(getAtCoderUrl(path));
-    if (!response.ok) {
-      throw new Error(`AtCoder user '${handle}' not found or rating history is unavailable.`);
-    }
-    const history = await response.json();
-    if (!Array.isArray(history)) {
-      throw new Error(`Invalid response for user '${handle}'.`);
-    }
+  const targetUrl = `https://atcoder.jp${path}`;
+
+  const parseHistory = (history) => {
+    if (!Array.isArray(history)) return null;
     return history.map(h => ({
       contestId: h.ContestScreenName,
       contestName: h.ContestName,
@@ -168,72 +162,51 @@ export async function fetchAtCoderUserRating(handle) {
       newRating: h.NewRating,
       ratingUpdateTimeSeconds: Math.floor(new Date(h.EndTime).getTime() / 1000)
     }));
-  }
+  };
 
-  const targetUrl = `https://atcoder.jp${path}`;
-  
-  // 1. Try corsproxy.io first (fast and does not rate-limit localhosts; URL must be unencoded)
-  try {
-    const response = await fetch(`https://corsproxy.io/?${targetUrl}`);
-    if (response.ok) {
-      const history = await response.json();
-      if (Array.isArray(history)) {
-        return history.map(h => ({
-          contestId: h.ContestScreenName,
-          contestName: h.ContestName,
-          rank: h.Place,
-          oldRating: h.OldRating,
-          newRating: h.NewRating,
-          ratingUpdateTimeSeconds: Math.floor(new Date(h.EndTime).getTime() / 1000)
-        }));
-      }
+  const tryFetch = async (url) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
+      if (!res.ok) return null;
+      const data = await res.json();
+      return parseHistory(data);
+    } catch {
+      clearTimeout(timer);
+      return null;
     }
-  } catch (err) {
-    console.warn('Corsproxy.io failed, trying fallback to allorigins...', err);
+  };
+
+  // Local dev: use Vite proxy
+  if (isLocal) {
+    const response = await fetch(getAtCoderUrl(path));
+    if (!response.ok) throw new Error(`AtCoder user '${handle}' not found.`);
+    const history = await response.json();
+    const parsed = parseHistory(history);
+    if (!parsed) throw new Error(`Invalid response for user '${handle}'.`);
+    return parsed;
   }
 
-  // 2. Fallback to allorigins proxy
-  try {
-    const response = await fetch(`https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`);
-    if (response.ok) {
-      const history = await response.json();
-      if (Array.isArray(history)) {
-        return history.map(h => ({
-          contestId: h.ContestScreenName,
-          contestName: h.ContestName,
-          rank: h.Place,
-          oldRating: h.OldRating,
-          newRating: h.NewRating,
-          ratingUpdateTimeSeconds: Math.floor(new Date(h.EndTime).getTime() / 1000)
-        }));
-      }
-    }
-  } catch (err) {
-    console.warn('Allorigins proxy failed, trying fallback to codetabs...', err);
+  // Production: try CORS proxies in order
+  const proxies = [
+    `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+    `https://cors.sh/${targetUrl}`,
+    `https://thingproxy.freeboard.io/fetch/${targetUrl}`,
+  ];
+
+  for (const proxyUrl of proxies) {
+    const result = await tryFetch(proxyUrl);
+    if (result !== null) return result;
+    console.warn(`Proxy failed: ${proxyUrl}`);
   }
 
-  // 3. Fallback to codetabs proxy
-  try {
-    const response = await fetch(`https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`);
-    if (response.ok) {
-      const history = await response.json();
-      if (Array.isArray(history)) {
-        return history.map(h => ({
-          contestId: h.ContestScreenName,
-          contestName: h.ContestName,
-          rank: h.Place,
-          oldRating: h.OldRating,
-          newRating: h.NewRating,
-          ratingUpdateTimeSeconds: Math.floor(new Date(h.EndTime).getTime() / 1000)
-        }));
-      }
-    }
-  } catch (err) {
-    console.error('All proxies failed.', err);
-  }
-
-  throw new Error(`AtCoder user '${handle}' not found or rating history could not be fetched due to CORS proxy blockages.`);
+  throw new Error(`AtCoder user '${handle}' not found or all CORS proxies are temporarily unavailable. Please try again in a moment.`);
 }
+
 
 export async function fetchAtCoderUserInfo(handle) {
   const history = await fetchAtCoderUserRating(handle);
