@@ -21,11 +21,12 @@ export default function ContestCard({
 }) {
   const { id, name, startTimeSeconds, durationSeconds, phase } = contest;
   
-  // Local states for note editing and accordion expansion
+  // Local states for note editing, custom subproblem input, and accordion expansion
   const [note, setNote] = useState(userData.note || '');
   const [isSaved, setIsSaved] = useState(false);
   const [isEditingNote, setIsEditingNote] = useState(false);
   const [isExpanded, setIsExpanded] = useState(false);
+  const [customProblem, setCustomProblem] = useState('');
 
   const handleSelectOverride = (problemIndex, val) => {
     onProblemOverrideChange(id, problemIndex, val);
@@ -79,18 +80,71 @@ export default function ContestCard({
     'Revisit'
   ];
 
-  // Helper to resolve problem indices based on division
+  // Helper to resolve problem indices dynamically based on division, submissions, and overrides
   const getProblemIndices = (div) => {
+    let base = [];
     if (platform === 'leetcode') {
-      return ['Q1', 'Q2', 'Q3', 'Q4'];
+      base = ['Q1', 'Q2', 'Q3', 'Q4'];
+    } else if (platform === 'atcoder') {
+      if (div === 'ABC (Beginner)') base = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+      else base = ['A', 'B', 'C', 'D', 'E', 'F'];
+    } else {
+      if (div === 'Div. 4') base = ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
+      else if (div === 'Div. 3') base = ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
+      else base = ['A', 'B', 'C', 'D', 'E', 'F'];
     }
-    if (platform === 'atcoder') {
-      if (div === 'ABC (Beginner)') return ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-      return ['A', 'B', 'C', 'D', 'E', 'F'];
+
+    const solvedList = submissionData.solvedProblems || [];
+    const attemptedList = submissionData.attemptedProblems || [];
+    const problemOverrides = userData.problemOverrides || {};
+
+    // Collect all known problem indices from all sources
+    const knownSet = new Set();
+    if (contest.problems && Array.isArray(contest.problems)) {
+      contest.problems.forEach(p => p.index && knownSet.add(p.index.toUpperCase()));
     }
-    if (div === 'Div. 4') return ['A', 'B', 'C', 'D', 'E', 'F', 'G', 'H'];
-    if (div === 'Div. 3') return ['A', 'B', 'C', 'D', 'E', 'F', 'G'];
-    return ['A', 'B', 'C', 'D', 'E', 'F'];
+    solvedList.forEach(p => knownSet.add(p.toUpperCase()));
+    attemptedList.forEach(p => knownSet.add(p.toUpperCase()));
+    Object.keys(problemOverrides).forEach(p => knownSet.add(p.toUpperCase()));
+
+    if (knownSet.size === 0) {
+      return base;
+    }
+
+    const result = [];
+    const processedKnown = new Set();
+
+    base.forEach(bIdx => {
+      const bUpper = bIdx.toUpperCase();
+      
+      // Find all matching sub-indices like D1, D2 for D
+      const matchingSub = Array.from(knownSet).filter(k => {
+        if (k === bUpper) return true;
+        const pattern = new RegExp(`^${bUpper}[0-9a-zA-Z]+$`);
+        return pattern.test(k);
+      });
+
+      if (matchingSub.length > 0) {
+        matchingSub.sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+        matchingSub.forEach(idx => {
+          if (!processedKnown.has(idx)) {
+            result.push(idx);
+            processedKnown.add(idx);
+          }
+        });
+      } else {
+        result.push(bIdx);
+      }
+    });
+
+    // Append any extra known indices (e.g., G, H)
+    const leftover = Array.from(knownSet)
+      .filter(k => !processedKnown.has(k))
+      .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
+
+    leftover.forEach(idx => result.push(idx));
+
+    return result;
   };
 
   const problemIndices = getProblemIndices(division);
@@ -246,10 +300,23 @@ export default function ContestCard({
             const problemOverrides = userData.problemOverrides || {};
             const override = problemOverrides[idx]; // 'solved', 'attempted', or undefined
             
-            let isSolved = solvedProblems.includes(idx) || 
-                             solvedProblems.some(p => p.toUpperCase() === idx.toUpperCase());
-            let isAttempted = attemptedProblems.includes(idx) || 
-                                attemptedProblems.some(p => p.toUpperCase().startsWith(idx.toUpperCase()));
+            const idxUpper = idx.toUpperCase();
+            let isSolved = solvedProblems.some(p => {
+              const pUpper = p.toUpperCase();
+              if (pUpper === idxUpper) return true;
+              if (pUpper.startsWith(idxUpper) && !problemIndices.map(x => x.toUpperCase()).includes(pUpper)) return true;
+              return false;
+            });
+
+            let isAttempted = false;
+            if (!isSolved) {
+              isAttempted = attemptedProblems.some(p => {
+                const pUpper = p.toUpperCase();
+                if (pUpper === idxUpper) return true;
+                if (pUpper.startsWith(idxUpper) && !problemIndices.map(x => x.toUpperCase()).includes(pUpper)) return true;
+                return false;
+              });
+            }
             
             if (override === 'solved') {
               isSolved = true;
@@ -432,6 +499,47 @@ export default function ContestCard({
                   </div>
                 );
               })}
+            </div>
+
+            {/* Quick Add Subproblem (e.g. D1, D2) */}
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px', marginTop: '14px', paddingTop: '12px', borderTop: '1px dashed var(--border-color)', flexWrap: 'wrap' }}>
+              <span style={{ fontSize: '0.8rem', color: 'var(--color-text-secondary)', fontWeight: '500' }}>Add Subproblem:</span>
+              <input
+                type="text"
+                className="form-control font-mono"
+                style={{ width: '130px', padding: '5px 10px', fontSize: '0.82rem', height: '30px' }}
+                placeholder="e.g. D1, D2"
+                value={customProblem}
+                onChange={(e) => setCustomProblem(e.target.value)}
+              />
+              <button
+                type="button"
+                className="btn btn-sm"
+                style={{ backgroundColor: 'rgba(52, 211, 153, 0.15)', color: 'var(--success)', border: '1px solid rgba(52, 211, 153, 0.3)', padding: '4px 10px', fontSize: '0.78rem', fontWeight: '600' }}
+                onClick={() => {
+                  const clean = customProblem.trim().toUpperCase();
+                  if (clean) {
+                    handleSelectOverride(clean, 'solved');
+                    setCustomProblem('');
+                  }
+                }}
+              >
+                + Add AC
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm"
+                style={{ backgroundColor: 'rgba(248, 113, 113, 0.15)', color: 'var(--danger)', border: '1px solid rgba(248, 113, 113, 0.3)', padding: '4px 10px', fontSize: '0.78rem', fontWeight: '600' }}
+                onClick={() => {
+                  const clean = customProblem.trim().toUpperCase();
+                  if (clean) {
+                    handleSelectOverride(clean, 'attempted');
+                    setCustomProblem('');
+                  }
+                }}
+              >
+                + Add WA
+              </button>
             </div>
           </div>
         </div>
