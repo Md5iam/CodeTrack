@@ -189,7 +189,7 @@ export async function fetchAtCoderUserRating(handle) {
     return parsed;
   }
 
-  // Production: try CORS proxies in order
+  // Production: race all CORS proxies in parallel — fastest valid response wins
   const proxies = [
     `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`,
     `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
@@ -198,13 +198,15 @@ export async function fetchAtCoderUserRating(handle) {
     `https://thingproxy.freeboard.io/fetch/${targetUrl}`,
   ];
 
-  for (const proxyUrl of proxies) {
-    const result = await tryFetch(proxyUrl);
-    if (result !== null) return result;
-    console.warn(`Proxy failed: ${proxyUrl}`);
+  try {
+    return await Promise.any(proxies.map(async (proxyUrl) => {
+      const result = await tryFetch(proxyUrl);
+      if (result === null) throw new Error('Invalid or empty response');
+      return result;
+    }));
+  } catch {
+    throw new Error(`AtCoder user '${handle}' not found or all CORS proxies are temporarily unavailable. Please try again in a moment.`);
   }
-
-  throw new Error(`AtCoder user '${handle}' not found or all CORS proxies are temporarily unavailable. Please try again in a moment.`);
 }
 
 
@@ -230,7 +232,7 @@ export async function fetchAtCoderUserInfo(handle) {
   };
 }
 
-async function fetchWithProxies(targetUrl) {
+async function fetchWithProxies(targetUrl, expectArray = true) {
   const tryFetch = async (url) => {
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), 5000);
@@ -238,7 +240,17 @@ async function fetchWithProxies(targetUrl) {
       const res = await fetch(url, { signal: controller.signal });
       clearTimeout(timer);
       if (!res.ok) throw new Error(`HTTP ${res.status}`);
-      const data = await res.json();
+      let data = await res.json();
+
+      // allorigins.win wraps response as { contents: "..." } — unwrap it
+      if (data && typeof data === 'object' && !Array.isArray(data) && typeof data.contents === 'string') {
+        data = JSON.parse(data.contents);
+      }
+
+      // Validate we got the right shape before accepting
+      if (expectArray && !Array.isArray(data)) throw new Error('Expected array, got object');
+      if (!expectArray && Array.isArray(data)) throw new Error('Expected object, got array');
+
       return data;
     } catch (err) {
       clearTimeout(timer);
@@ -254,7 +266,7 @@ async function fetchWithProxies(targetUrl) {
     `https://thingproxy.freeboard.io/fetch/${targetUrl}`,
   ];
 
-  // Race all proxies in parallel — fastest one that succeeds wins
+  // Race all proxies in parallel — fastest one that succeeds with valid data wins
   try {
     return await Promise.any(proxies.map(proxyUrl => tryFetch(proxyUrl)));
   } catch {
