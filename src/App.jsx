@@ -4,6 +4,7 @@ import ConnectHandle from './components/ConnectHandle';
 import Dashboard from './components/Dashboard';
 import ContestList from './components/ContestList';
 import CloudSettingsModal from './components/CloudSettingsModal';
+import DatabaseGateway from './components/DatabaseGateway';
 
 import { 
   fetchUserInfo, 
@@ -86,6 +87,9 @@ function App() {
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
   const [errorMsg, setErrorMsg] = useState('');
+
+  // Database Gateway — must connect Supabase before entering the app
+  const [isDbUnlocked, setIsDbUnlocked] = useState(isSupabaseConfigured());
 
   // Cloud Sync Database States
   const [isCloudActive, setIsCloudActive] = useState(isSupabaseConfigured());
@@ -652,6 +656,17 @@ function App() {
           </div>
         )}
       </div>
+    );
+  }
+
+  if (!isDbUnlocked) {
+    return (
+      <DatabaseGateway
+        onUnlocked={() => {
+          setIsDbUnlocked(true);
+          setIsCloudActive(true);
+        }}
+      />
     );
   }
 
