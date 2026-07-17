@@ -11,17 +11,22 @@ export default function Dashboard({
   recentContests = [], 
   onNavigateToContests,
   setFilterState,
-  platform = 'codeforces'
+  platform = 'codeforces',
+  handle
 }) {
+  const isManual = platform === 'atcoder' && handle === 'atcoder_manual';
+  const displayRank = isManual ? 'Manual' : stats.rank;
+  const displayMaxRank = isManual ? 'Manual' : stats.maxRank;
+
   const rankClass = platform === 'codeforces' 
     ? getRankColorClass(stats.rank) 
     : platform === 'atcoder' 
-      ? `rank-at-${stats.rank.toLowerCase()}` 
+      ? `rank-at-${(isManual ? 'Grey' : stats.rank).toLowerCase()}` 
       : `rank-lc-${stats.rank.toLowerCase()}`;
   const maxRankClass = platform === 'codeforces' 
     ? getRankColorClass(stats.maxRank) 
     : platform === 'atcoder' 
-      ? `rank-at-${stats.maxRank.toLowerCase()}` 
+      ? `rank-at-${(isManual ? 'Grey' : stats.maxRank).toLowerCase()}` 
       : `rank-lc-${stats.maxRank.toLowerCase()}`;
 
   // Calculate rating progress to next level
@@ -161,17 +166,21 @@ export default function Dashboard({
         <div className="hero-rating-box">
           <span className="hero-rating-label">Current Rating</span>
           <h1 className={`hero-rating-value font-mono ${rankClass}`} style={{ margin: 0 }}>
-            {stats.currentRating || 'Unrated'}
+            {isManual ? 'N/A' : (stats.currentRating || 'Unrated')}
           </h1>
-          <span className={`badge ${rankClass}-bg`} style={{ ...styles.rankBadge, backgroundColor: getRankBgColor(stats.rank, platform) }}>
-            {stats.rank}
+          <span className={`badge ${rankClass}-bg`} style={{ ...styles.rankBadge, backgroundColor: getRankBgColor(isManual ? 'Grey' : stats.rank, platform) }}>
+            {displayRank}
           </span>
         </div>
  
         {/* Center Column: Visual Rating Sparkline */}
         <div className="hero-sparkline-box">
           <span className="hero-sparkline-label">Rating Sparkline</span>
-          {ratings.length > 1 ? (
+          {isManual ? (
+            <div style={{ color: 'var(--color-text-muted)', fontSize: '0.8rem', fontStyle: 'italic', textAlign: 'center', maxWidth: '180px' }}>
+              Username sync bypassed. Manually track contests in the Contests tab.
+            </div>
+          ) : ratings.length > 1 ? (
             <div style={{ display: 'flex', flexDirection: 'column', alignItems: 'center', gap: '4px' }}>
               <svg width={width} height={height} style={{ overflow: 'visible' }}>
                 <defs>
@@ -208,7 +217,13 @@ export default function Dashboard({
         </div>
  
         {/* Right Column: Milestone Tracker */}
-        {stats.currentRating > 0 && nextLevel ? (
+        {isManual ? (
+          <div className="hero-milestone-box" style={{ justifyContent: 'center' }}>
+            <span style={{ color: 'var(--success)', fontSize: '0.85rem', fontWeight: '600', display: 'flex', alignItems: 'center', gap: '6px' }}>
+              <CheckCircle2 size={16} /> Manual Tracking Mode
+            </span>
+          </div>
+        ) : stats.currentRating > 0 && nextLevel ? (
           <div className="hero-milestone-box">
             <div style={styles.milestoneHeader}>
               <span style={styles.milestoneLabel}>Progress to {nextLevel.name}</span>
@@ -241,10 +256,10 @@ export default function Dashboard({
         <div className="secondary-stat-item">
           <span className="secondary-stat-label">Maximum Rating</span>
           <span className={`secondary-stat-value font-mono ${maxRankClass}`} style={{ margin: '4px 0' }}>
-            {stats.maxRating || '0'}
+            {isManual ? 'N/A' : (stats.maxRating || '0')}
           </span>
-          <span className={`secondary-stat-badge ${maxRankClass}-bg`} style={{ backgroundColor: getRankBgColor(stats.maxRank, platform) }}>
-            Max: {stats.maxRank}
+          <span className={`secondary-stat-badge ${maxRankClass}-bg`} style={{ backgroundColor: getRankBgColor(isManual ? 'Grey' : stats.maxRank, platform) }}>
+            Max: {displayMaxRank}
           </span>
         </div>
 

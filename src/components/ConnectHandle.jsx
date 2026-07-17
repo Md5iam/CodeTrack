@@ -119,6 +119,36 @@ export default function ConnectHandle({ onConnect, onUseMock, platform }) {
             Explore Demo Mode
           </button>
         </div>
+
+        {platform === 'atcoder' && (
+          <div style={{ marginTop: '20px', width: '100%' }}>
+            <div style={styles.divider}>
+              <span style={styles.dividerLine}></span>
+              <span style={styles.dividerText}>or bypass</span>
+              <span style={styles.dividerLine}></span>
+            </div>
+            <p style={{ ...styles.demoText, marginBottom: '12px' }}>
+              Due to AtCoder proxy restrictions, you can bypass username sync and track contests manually.
+            </p>
+            <button
+              onClick={() => onConnect('atcoder_manual')}
+              className="btn btn-success"
+              style={{ 
+                ...styles.demoBtn, 
+                backgroundColor: 'rgba(16, 185, 129, 0.1)', 
+                color: 'var(--success)', 
+                borderColor: 'var(--success)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center'
+              }}
+              disabled={isLoading}
+            >
+              <Play size={16} fill="currentColor" style={{ marginRight: '8px' }} />
+              Track Contests Manually
+            </button>
+          </div>
+        )}
       </div>
     </div>
   );

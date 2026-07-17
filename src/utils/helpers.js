@@ -237,7 +237,26 @@ export function calculateDashboardStats(userInfo, ratingHistory = [], processedS
       uniqueSolvedProblems.add(`${cid}-${pIndex}`);
     });
   });
-  const totalUniqueSolved = userInfo?.solvedStats?.total || uniqueSolvedProblems.size;
+
+  // Account for manual overrides in userContestData
+  Object.keys(userContestData).forEach(cid => {
+    const data = userContestData[cid];
+    if (data && data.problemOverrides) {
+      Object.keys(data.problemOverrides).forEach(pIndex => {
+        const val = data.problemOverrides[pIndex];
+        const key = `${cid}-${pIndex}`;
+        if (val === 'solved') {
+          uniqueSolvedProblems.add(key);
+        } else if (val === 'attempted') {
+          uniqueSolvedProblems.delete(key);
+        }
+      });
+    }
+  });
+
+  const totalUniqueSolved = userInfo?.solvedStats?.total && userInfo?.handle !== 'atcoder_manual' && userInfo?.handle !== 'demo'
+    ? userInfo.solvedStats.total 
+    : uniqueSolvedProblems.size;
 
   // Completed & Needing Upsolving contests
   let completedContests = 0;

@@ -98,21 +98,32 @@ export default function CloudSettingsModal({ isOpen, onClose, onConfigChange }) 
     onConfigChange();
   };
 
-  const sqlCode = `create table codetrack_contest_data (
+  const sqlCode = `-- Run this in your Supabase SQL Editor
+
+create table if not exists codetrack_contest_data (
   id bigint generated always as identity primary key,
   handle text not null,
-  contest_id integer not null,
+  platform text not null default 'codeforces',
+  contest_id text not null,
   status text default '',
   note text default '',
   favourite boolean default false,
+  problem_overrides jsonb default '{}',
   updated_at timestamp with time zone default timezone('utc'::text, now()) not null,
-  
-  unique(handle, contest_id)
+
+  unique(handle, platform, contest_id)
 );
 
 -- Enable RLS and add public access policies
 alter table codetrack_contest_data enable row level security;
-create policy "Allow public access" on codetrack_contest_data for all using (true) with check (true);`;
+create policy "Allow public access" on codetrack_contest_data for all using (true) with check (true);
+
+-- If you already have an old table, run these migrations instead:
+-- alter table codetrack_contest_data add column if not exists platform text not null default 'codeforces';
+-- alter table codetrack_contest_data add column if not exists problem_overrides jsonb default '{}';
+-- alter table codetrack_contest_data alter column contest_id type text using contest_id::text;
+-- alter table codetrack_contest_data drop constraint if exists codetrack_contest_data_handle_contest_id_key;
+-- alter table codetrack_contest_data add constraint codetrack_contest_data_handle_platform_contest_id_key unique (handle, platform, contest_id);`;
 
   const handleCopySql = () => {
     navigator.clipboard.writeText(sqlCode);

@@ -230,6 +230,48 @@ export async function fetchAtCoderUserInfo(handle) {
   };
 }
 
+async function fetchWithProxies(targetUrl) {
+  const tryFetch = async (url) => {
+    const controller = new AbortController();
+    const timer = setTimeout(() => controller.abort(), 8000);
+    try {
+      const res = await fetch(url, { signal: controller.signal });
+      clearTimeout(timer);
+      if (!res.ok) return null;
+      return await res.json();
+    } catch (err) {
+      clearTimeout(timer);
+      return null;
+    }
+  };
+
+  const proxies = [
+    `https://corsproxy.io/?url=${encodeURIComponent(targetUrl)}`,
+    `https://api.allorigins.win/raw?url=${encodeURIComponent(targetUrl)}`,
+    `https://api.codetabs.com/v1/proxy?quest=${encodeURIComponent(targetUrl)}`,
+    `https://cors.sh/${targetUrl}`,
+    `https://thingproxy.freeboard.io/fetch/${targetUrl}`,
+  ];
+
+  for (const proxyUrl of proxies) {
+    const result = await tryFetch(proxyUrl);
+    if (result !== null) return result;
+    console.warn(`Proxy failed: ${proxyUrl}`);
+  }
+
+  // Try direct fetch as final fallback
+  try {
+    const response = await fetch(targetUrl);
+    if (response.ok) {
+      return await response.json();
+    }
+  } catch (err) {
+    console.warn('Direct fetch fallback failed', err);
+  }
+
+  throw new Error('All CORS proxies and direct connection failed.');
+}
+
 export async function fetchAtCoderSubmissions(handle) {
   const path = `/atcoder-api/v3/user/submissions?user=${encodeURIComponent(handle)}&from_second=0`;
   
@@ -243,19 +285,11 @@ export async function fetchAtCoderSubmissions(handle) {
 
   const targetUrl = `https://kenkoooo.com${path}`;
   try {
-    const response = await fetch(`https://corsproxy.io/?${targetUrl}`);
-    if (response.ok) {
-      return await response.json();
-    }
+    return await fetchWithProxies(targetUrl);
   } catch (err) {
-    console.warn('Corsproxy failed for submissions, attempting direct fetch...', err);
-  }
-  
-  const response = await fetch(targetUrl);
-  if (!response.ok) {
+    console.error(err);
     throw new Error(`Failed to fetch AtCoder submissions for user '${handle}'.`);
   }
-  return await response.json();
 }
 
 export async function fetchAtCoderContestList(bypassCache = false) {
@@ -286,21 +320,7 @@ export async function fetchAtCoderContestList(bypassCache = false) {
       data = await response.json();
     } else {
       const targetUrl = `https://kenkoooo.com${path}`;
-      try {
-        const response = await fetch(`https://corsproxy.io/?${targetUrl}`);
-        if (response.ok) {
-          data = await response.json();
-        } else {
-          throw new Error();
-        }
-      } catch (e) {
-        console.warn('Corsproxy failed for AtCoder contests list, attempting direct fetch...', e);
-        const response = await fetch(targetUrl);
-        if (!response.ok) {
-          throw new Error(`HTTP Error: ${response.status}`);
-        }
-        data = await response.json();
-      }
+      data = await fetchWithProxies(targetUrl);
     }
     
     // Map AtCoder contests to Codeforces shape

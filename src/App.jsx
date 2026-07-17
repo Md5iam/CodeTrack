@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useMemo } from 'react';
+import React, { useState, useEffect, useMemo, useRef } from 'react';
 import Navbar from './components/Navbar';
 import ConnectHandle from './components/ConnectHandle';
 import Dashboard from './components/Dashboard';
@@ -103,6 +103,70 @@ function App() {
     untriedProblems: ''
   });
 
+  const prevHandleRef = useRef(handle);
+
+  // Synchronize state changes to URL hash (handles pushing / replacing browser history)
+  useEffect(() => {
+    const savedHandle = platform === 'codeforces' 
+      ? getHandle() 
+      : platform === 'atcoder' 
+        ? getAtCoderHandle() 
+        : getLeetCodeHandle();
+
+    let newHash = '';
+    if (savedHandle) {
+      newHash = `#/${platform}/${activeTab}`;
+    } else {
+      newHash = `#/${platform}`;
+    }
+
+    if (window.location.hash !== newHash) {
+      const isLoginTransition = !prevHandleRef.current && handle;
+      const isLogoutTransition = prevHandleRef.current && !handle;
+
+      if (isLoginTransition || isLogoutTransition) {
+        window.history.replaceState(null, '', newHash);
+      } else {
+        window.location.hash = newHash;
+      }
+    }
+    
+    prevHandleRef.current = handle;
+  }, [platform, activeTab, handle]);
+
+  // Handle URL hash changes (browser back/forward navigation)
+  useEffect(() => {
+    const handleHashChange = () => {
+      const hash = window.location.hash;
+      if (!hash) {
+        setPlatform('codeforces');
+        setActiveTab('dashboard');
+        return;
+      }
+
+      const parts = hash.replace(/^#\/?/, '').split('/');
+      const parsedPlatform = parts[0];
+      const parsedTab = parts[1] || 'dashboard';
+
+      const validPlatforms = ['codeforces', 'atcoder', 'leetcode'];
+      const validTabs = ['dashboard', 'contests'];
+
+      if (validPlatforms.includes(parsedPlatform)) {
+        setPlatform(parsedPlatform);
+        if (validTabs.includes(parsedTab)) {
+          setActiveTab(parsedTab);
+        }
+      }
+    };
+
+    window.addEventListener('hashchange', handleHashChange);
+    handleHashChange();
+
+    return () => {
+      window.removeEventListener('hashchange', handleHashChange);
+    };
+  }, []);
+
   // Load initial handle and local storage data when platform or load triggers
   useEffect(() => {
     setIsLoading(true);
@@ -164,19 +228,32 @@ function App() {
   const handleCloudConfigChange = () => {
     const active = isSupabaseConfigured();
     setIsCloudActive(active);
-    if (active && handle && handle !== 'demo' && platform === 'codeforces') {
-      syncCloudData(handle);
+    if (active && handle && handle !== 'demo' && handle !== 'atcoder_manual') {
+      syncCloudData(handle, platform);
     }
   };
 
-  const syncCloudData = async (userHandle) => {
-    if (!userHandle || userHandle === 'demo' || platform !== 'codeforces') return;
+  const syncCloudData = async (userHandle, activePlatform = platform) => {
+    if (!userHandle || userHandle === 'demo') return;
+    if (!isSupabaseConfigured()) return;
     try {
-      const cloudData = await fetchCloudContestData(userHandle);
-      const localData = getContestUserData();
-      const mergedData = { ...localData, ...cloudData };
-      saveContestUserData(mergedData);
-      setUserContestData(mergedData);
+      const cloudData = await fetchCloudContestData(userHandle, activePlatform);
+      if (activePlatform === 'codeforces') {
+        const localData = getContestUserData();
+        const mergedData = { ...localData, ...cloudData };
+        saveContestUserData(mergedData);
+        setUserContestData(mergedData);
+      } else if (activePlatform === 'atcoder') {
+        const localData = getAtCoderContestUserData();
+        const mergedData = { ...localData, ...cloudData };
+        saveAtCoderContestUserData(mergedData);
+        setUserContestData(mergedData);
+      } else {
+        const localData = getLeetCodeContestUserData();
+        const mergedData = { ...localData, ...cloudData };
+        saveLeetCodeContestUserData(mergedData);
+        setUserContestData(mergedData);
+      }
     } catch (err) {
       console.warn('Failed to fetch cloud database tracking data', err);
     }
@@ -193,9 +270,22 @@ function App() {
       if (activePlatform === 'codeforces') {
         profile = await fetchUserInfo(userHandle);
       } else if (activePlatform === 'atcoder') {
-        const atCoderData = await fetchAtCoderUserInfo(userHandle);
-        profile = atCoderData.profile;
-        atCoderHistory = atCoderData.history;
+        if (userHandle === 'atcoder_manual') {
+          profile = {
+            handle: 'atcoder_manual',
+            rank: 'Manual',
+            maxRank: 'Manual',
+            rating: 0,
+            maxRating: 0,
+            avatar: 'https://img.atcoder.jp/assets/icon/avatar.png',
+            contestCount: 0
+          };
+          atCoderHistory = [];
+        } else {
+          const atCoderData = await fetchAtCoderUserInfo(userHandle);
+          profile = atCoderData.profile;
+          atCoderHistory = atCoderData.history;
+        }
       } else {
         const leetCodeData = await fetchLeetCodeUserInfo(userHandle);
         profile = leetCodeData.profile;
@@ -217,7 +307,7 @@ function App() {
         (activePlatform === 'codeforces' 
           ? fetchUserStatus(userHandle) 
           : activePlatform === 'atcoder'
-            ? fetchAtCoderSubmissions(userHandle)
+            ? (userHandle === 'atcoder_manual' ? Promise.resolve([]) : fetchAtCoderSubmissions(userHandle))
             : fetchLeetCodeSubmissions(userHandle)
         ).catch(err => {
           console.warn('Failed to load submissions, using empty', err);
@@ -232,8 +322,8 @@ function App() {
           console.warn('Failed to fetch fresh contests, attempting cached', err);
           return [];
         }),
-        // Load cloud tracking data if connected (only for CF currently)
-        (activePlatform === 'codeforces' && isSupabaseConfigured() ? fetchCloudContestData(userHandle) : Promise.resolve(null)).catch(err => {
+        // Load cloud tracking data for all platforms if Supabase is configured
+        (isSupabaseConfigured() ? fetchCloudContestData(userHandle, activePlatform) : Promise.resolve(null)).catch(err => {
           console.warn('Failed to load cloud tracking data, using local fallback', err);
           return null;
         })
@@ -252,10 +342,20 @@ function App() {
         saveLeetCodeHandle(userHandle);
       }
 
-      if (cloudData && activePlatform === 'codeforces') {
-        const mergedData = { ...getContestUserData(), ...cloudData };
-        saveContestUserData(mergedData);
-        setUserContestData(mergedData);
+      if (cloudData) {
+        if (activePlatform === 'codeforces') {
+          const mergedData = { ...getContestUserData(), ...cloudData };
+          saveContestUserData(mergedData);
+          setUserContestData(mergedData);
+        } else if (activePlatform === 'atcoder') {
+          const mergedData = { ...getAtCoderContestUserData(), ...cloudData };
+          saveAtCoderContestUserData(mergedData);
+          setUserContestData(mergedData);
+        } else {
+          const mergedData = { ...getLeetCodeContestUserData(), ...cloudData };
+          saveLeetCodeContestUserData(mergedData);
+          setUserContestData(mergedData);
+        }
       }
     } catch (err) {
       console.error(err);
@@ -276,9 +376,22 @@ function App() {
       if (platform === 'codeforces') {
         profile = await fetchUserInfo(handle);
       } else if (platform === 'atcoder') {
-        const atCoderData = await fetchAtCoderUserInfo(handle);
-        profile = atCoderData.profile;
-        atCoderHistory = atCoderData.history;
+        if (handle === 'atcoder_manual') {
+          profile = {
+            handle: 'atcoder_manual',
+            rank: 'Manual',
+            maxRank: 'Manual',
+            rating: 0,
+            maxRating: 0,
+            avatar: 'https://img.atcoder.jp/assets/icon/avatar.png',
+            contestCount: 0
+          };
+          atCoderHistory = [];
+        } else {
+          const atCoderData = await fetchAtCoderUserInfo(handle);
+          profile = atCoderData.profile;
+          atCoderHistory = atCoderData.history;
+        }
       } else {
         const leetCodeData = await fetchLeetCodeUserInfo(handle);
         profile = leetCodeData.profile;
@@ -295,7 +408,7 @@ function App() {
         platform === 'codeforces' 
           ? fetchUserStatus(handle) 
           : platform === 'atcoder'
-            ? fetchAtCoderSubmissions(handle)
+            ? (handle === 'atcoder_manual' ? Promise.resolve([]) : fetchAtCoderSubmissions(handle))
             : fetchLeetCodeSubmissions(handle),
         platform === 'codeforces' 
           ? fetchContestList(true) 
@@ -393,6 +506,18 @@ function App() {
     setErrorMsg('');
   };
 
+  // Helper: sync a single contest's full tracking record to Supabase
+  const syncContestToCloud = (contestId, updated) => {
+    if (!isCloudActive || handle === 'demo' || handle === 'atcoder_manual') return;
+    const cardData = updated[contestId] || {};
+    upsertCloudContestData(handle, contestId, {
+      status: cardData.status,
+      note: cardData.note,
+      favourite: cardData.favourite,
+      problemOverrides: cardData.problemOverrides || {}
+    }, platform).catch(err => console.warn('Failed to sync to Cloud database', err));
+  };
+
   // State update functions for custom manual statuses
   const handleStatusChange = (contestId, newStatus) => {
     const updated = platform === 'codeforces'
@@ -401,15 +526,7 @@ function App() {
         ? updateAtCoderContestStatus(contestId, newStatus)
         : updateLeetCodeContestStatus(contestId, newStatus);
     setUserContestData(updated);
-
-    if (platform === 'codeforces' && isCloudActive && handle !== 'demo') {
-      const cardData = updated[contestId] || {};
-      upsertCloudContestData(handle, contestId, {
-        status: newStatus,
-        note: cardData.note,
-        favourite: cardData.favourite
-      }).catch(err => console.warn('Failed to sync status to Cloud database', err));
-    }
+    syncContestToCloud(contestId, updated);
   };
 
   const handleNoteChange = (contestId, newNote) => {
@@ -419,15 +536,7 @@ function App() {
         ? updateAtCoderContestNote(contestId, newNote)
         : updateLeetCodeContestNote(contestId, newNote);
     setUserContestData(updated);
-
-    if (platform === 'codeforces' && isCloudActive && handle !== 'demo') {
-      const cardData = updated[contestId] || {};
-      upsertCloudContestData(handle, contestId, {
-        status: cardData.status,
-        note: newNote,
-        favourite: cardData.favourite
-      }).catch(err => console.warn('Failed to sync note to Cloud database', err));
-    }
+    syncContestToCloud(contestId, updated);
   };
 
   const handleFavouriteToggle = (contestId) => {
@@ -437,20 +546,13 @@ function App() {
         ? toggleAtCoderContestFavourite(contestId)
         : toggleLeetCodeContestFavourite(contestId);
     setUserContestData(updated);
-
-    if (platform === 'codeforces' && isCloudActive && handle !== 'demo') {
-      const cardData = updated[contestId] || {};
-      upsertCloudContestData(handle, contestId, {
-        status: cardData.status,
-        note: cardData.note,
-        favourite: cardData.favourite
-      }).catch(err => console.warn('Failed to sync favourite to Cloud database', err));
-    }
+    syncContestToCloud(contestId, updated);
   };
 
   const handleProblemOverrideChange = (contestId, problemIndex, override) => {
     const updated = updateProblemOverride(contestId, problemIndex, override, platform);
     setUserContestData(updated);
+    syncContestToCloud(contestId, updated);
   };
 
   // Calculate statistics from submission histories
@@ -580,6 +682,7 @@ function App() {
             onNavigateToContests={() => setActiveTab('contests')}
             setFilterState={setFilterState}
             platform={platform}
+            handle={handle}
           />
         ) : (
           <ContestList 
