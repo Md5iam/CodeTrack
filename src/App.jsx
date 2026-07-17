@@ -70,8 +70,21 @@ import {
 import './App.css';
 
 function App() {
+  // Read initial platform and tab from URL hash on first load (fixes refresh navigation)
+  const getInitialStateFromHash = () => {
+    const hash = window.location.hash;
+    const parts = hash.replace(/^#\/?/, '').split('/');
+    const validPlatforms = ['codeforces', 'atcoder', 'leetcode'];
+    const validTabs = ['dashboard', 'contests'];
+    const parsedPlatform = validPlatforms.includes(parts[0]) ? parts[0] : 'codeforces';
+    const parsedTab = validTabs.includes(parts[1]) ? parts[1] : 'dashboard';
+    return { platform: parsedPlatform, tab: parsedTab };
+  };
+
+  const initialState = getInitialStateFromHash();
+
   // Platform Selection
-  const [platform, setPlatform] = useState('codeforces');
+  const [platform, setPlatform] = useState(initialState.platform);
 
   // Main States
   const [handle, setHandle] = useState('');
@@ -82,7 +95,7 @@ function App() {
   const [userContestData, setUserContestData] = useState({});
   
   // Navigation & UI States
-  const [activeTab, setActiveTab] = useState('dashboard');
+  const [activeTab, setActiveTab] = useState(initialState.tab);
   const [isMockData, setIsMockData] = useState(false);
   const [isLoading, setIsLoading] = useState(true);
   const [isRefreshing, setIsRefreshing] = useState(false);
