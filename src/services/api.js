@@ -91,7 +91,10 @@ export async function fetchContestList(bypassCache = false) {
 
   if (!bypassCache && cachedData && cachedTime && (Date.now() - parseInt(cachedTime, 10) < CACHE_DURATION)) {
     try {
-      return JSON.parse(cachedData);
+      const parsed = JSON.parse(cachedData);
+      if (parsed && parsed.length > 0 && parsed.some(c => c.problems && c.problems.length > 0)) {
+        return parsed;
+      }
     } catch (e) {
       console.error('Failed to parse cached contests', e);
     }
@@ -108,8 +111,42 @@ export async function fetchContestList(bypassCache = false) {
       throw new Error(data.comment || 'Failed to fetch contests');
     }
     
-    // Sort contests by startTimeSeconds descending (newest first) by default
     const contests = data.result;
+
+    // Fetch official problemset to map exact problem indices (A, B, C1, C2, D1, D2...) for every contest
+    try {
+      const pRes = await fetch(`${BASE_URL}/problemset.problems`);
+      if (pRes.ok) {
+        const pData = await pRes.json();
+        if (pData.status === 'OK' && pData.result && pData.result.problems) {
+          const problemsByContest = {};
+          pData.result.problems.forEach(p => {
+            if (!p.contestId) return;
+            if (!problemsByContest[p.contestId]) {
+              problemsByContest[p.contestId] = [];
+            }
+            problemsByContest[p.contestId].push({
+              index: p.index,
+              name: p.name,
+              rating: p.rating
+            });
+          });
+
+          // Attach and sort exact problem indices for each contest
+          contests.forEach(c => {
+            if (problemsByContest[c.id]) {
+              c.problems = problemsByContest[c.id].sort((a, b) => 
+                a.index.localeCompare(b.index, undefined, { numeric: true, sensitivity: 'base' })
+              );
+            }
+          });
+        }
+      }
+    } catch (pErr) {
+      console.warn('Failed to fetch problemset for exact problem mapping', pErr);
+    }
+
+    // Sort contests by startTimeSeconds descending (newest first) by default
     contests.sort((a, b) => (b.startTimeSeconds || 0) - (a.startTimeSeconds || 0));
 
     try {

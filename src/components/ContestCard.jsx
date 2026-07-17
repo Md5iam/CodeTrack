@@ -80,8 +80,21 @@ export default function ContestCard({
     'Revisit'
   ];
 
-  // Helper to resolve problem indices dynamically based on division, submissions, and overrides
+  // Helper to resolve problem indices dynamically based on division, API contest problems, submissions, and overrides
   const getProblemIndices = (div) => {
+    // If official problem data exists on contest object, use it as primary source!
+    if (contest.problems && Array.isArray(contest.problems) && contest.problems.length > 0) {
+      const officialSet = new Set(contest.problems.map(p => p.index.toUpperCase()).filter(Boolean));
+      // Also merge any extra user overrides or submissions if custom subproblems were added
+      (submissionData.solvedProblems || []).forEach(p => officialSet.add(p.toUpperCase()));
+      (submissionData.attemptedProblems || []).forEach(p => officialSet.add(p.toUpperCase()));
+      Object.keys(userData.problemOverrides || {}).forEach(p => officialSet.add(p.toUpperCase()));
+
+      return Array.from(officialSet).sort((a, b) => 
+        a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
+      );
+    }
+
     let base = [];
     if (platform === 'leetcode') {
       base = ['Q1', 'Q2', 'Q3', 'Q4'];
@@ -100,12 +113,21 @@ export default function ContestCard({
 
     // Collect all known problem indices from all sources
     const knownSet = new Set();
-    if (contest.problems && Array.isArray(contest.problems)) {
-      contest.problems.forEach(p => p.index && knownSet.add(p.index.toUpperCase()));
-    }
     solvedList.forEach(p => knownSet.add(p.toUpperCase()));
     attemptedList.forEach(p => knownSet.add(p.toUpperCase()));
     Object.keys(problemOverrides).forEach(p => knownSet.add(p.toUpperCase()));
+
+    // Ensure paired subproblems (if D1 exists, ensure D2 exists; if D2 exists, ensure D1)
+    Array.from(knownSet).forEach(k => {
+      const match1 = k.match(/^([A-Z])1$/);
+      if (match1) {
+        knownSet.add(`${match1[1]}2`);
+      }
+      const match2 = k.match(/^([A-Z])2$/);
+      if (match2) {
+        knownSet.add(`${match2[1]}1`);
+      }
+    });
 
     if (knownSet.size === 0) {
       return base;
@@ -117,9 +139,9 @@ export default function ContestCard({
     base.forEach(bIdx => {
       const bUpper = bIdx.toUpperCase();
       
-      // Find all matching sub-indices like D1, D2 for D
+      // Find all matching sub-indices like D1, D2 for D (excluding bare letter bUpper if sub-indices exist)
       const matchingSub = Array.from(knownSet).filter(k => {
-        if (k === bUpper) return true;
+        if (k === bUpper) return false;
         const pattern = new RegExp(`^${bUpper}[0-9a-zA-Z]+$`);
         return pattern.test(k);
       });
@@ -132,6 +154,10 @@ export default function ContestCard({
             processedKnown.add(idx);
           }
         });
+        processedKnown.add(bUpper);
+      } else if (knownSet.has(bUpper)) {
+        result.push(bIdx);
+        processedKnown.add(bUpper);
       } else {
         result.push(bIdx);
       }
@@ -495,6 +521,28 @@ export default function ContestCard({
                       >
                         WA
                       </button>
+                      
+                      {/* Split button for single letter problems (e.g. D -> D1, D2) */}
+                      {/^[A-Z]$/.test(idx) && (
+                        <button
+                          type="button"
+                          onClick={() => {
+                            handleSelectOverride(`${idx}1`, 'default');
+                            handleSelectOverride(`${idx}2`, 'default');
+                          }}
+                          style={{
+                            ...styles.overridePillBtn,
+                            backgroundColor: 'rgba(99, 102, 241, 0.12)',
+                            color: 'var(--primary)',
+                            border: '1px dashed rgba(99, 102, 241, 0.35)',
+                            fontSize: '0.7rem',
+                            padding: '3px 7px'
+                          }}
+                          title={`Split ${idx} into ${idx}1 and ${idx}2`}
+                        >
+                          Split {idx}1/{idx}2
+                        </button>
+                      )}
                     </div>
                   </div>
                 );
