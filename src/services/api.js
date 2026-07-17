@@ -233,15 +233,16 @@ export async function fetchAtCoderUserInfo(handle) {
 async function fetchWithProxies(targetUrl) {
   const tryFetch = async (url) => {
     const controller = new AbortController();
-    const timer = setTimeout(() => controller.abort(), 8000);
+    const timer = setTimeout(() => controller.abort(), 5000);
     try {
       const res = await fetch(url, { signal: controller.signal });
       clearTimeout(timer);
-      if (!res.ok) return null;
-      return await res.json();
+      if (!res.ok) throw new Error(`HTTP ${res.status}`);
+      const data = await res.json();
+      return data;
     } catch (err) {
       clearTimeout(timer);
-      return null;
+      throw err;
     }
   };
 
@@ -253,23 +254,19 @@ async function fetchWithProxies(targetUrl) {
     `https://thingproxy.freeboard.io/fetch/${targetUrl}`,
   ];
 
-  for (const proxyUrl of proxies) {
-    const result = await tryFetch(proxyUrl);
-    if (result !== null) return result;
-    console.warn(`Proxy failed: ${proxyUrl}`);
-  }
-
-  // Try direct fetch as final fallback
+  // Race all proxies in parallel — fastest one that succeeds wins
   try {
-    const response = await fetch(targetUrl);
-    if (response.ok) {
-      return await response.json();
+    return await Promise.any(proxies.map(proxyUrl => tryFetch(proxyUrl)));
+  } catch {
+    // All proxies failed, try direct as last resort
+    try {
+      const response = await fetch(targetUrl);
+      if (response.ok) return await response.json();
+    } catch (err) {
+      console.warn('Direct fetch fallback failed', err);
     }
-  } catch (err) {
-    console.warn('Direct fetch fallback failed', err);
+    throw new Error('All CORS proxies and direct connection failed.');
   }
-
-  throw new Error('All CORS proxies and direct connection failed.');
 }
 
 export async function fetchAtCoderSubmissions(handle) {
