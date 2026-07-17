@@ -228,7 +228,7 @@ function App() {
   const handleCloudConfigChange = () => {
     const active = isSupabaseConfigured();
     setIsCloudActive(active);
-    if (active && handle && handle !== 'demo' && handle !== 'atcoder_manual') {
+    if (active && handle && handle !== 'demo') {
       syncCloudData(handle, platform);
     }
   };
@@ -508,7 +508,7 @@ function App() {
 
   // Helper: sync a single contest's full tracking record to Supabase
   const syncContestToCloud = (contestId, updated) => {
-    if (!isCloudActive || handle === 'demo' || handle === 'atcoder_manual') return;
+    if (!isCloudActive || handle === 'demo') return;
     const cardData = updated[contestId] || {};
     upsertCloudContestData(handle, contestId, {
       status: cardData.status,
