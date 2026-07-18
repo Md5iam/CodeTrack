@@ -82,19 +82,6 @@ export default function ContestCard({
 
   // Helper to resolve problem indices dynamically based on division, API contest problems, submissions, and overrides
   const getProblemIndices = (div) => {
-    // If official problem data exists on contest object, use it as primary source!
-    if (contest.problems && Array.isArray(contest.problems) && contest.problems.length > 0) {
-      const officialSet = new Set(contest.problems.map(p => p.index.toUpperCase()).filter(Boolean));
-      // Also merge any extra user overrides or submissions if custom subproblems were added
-      (submissionData.solvedProblems || []).forEach(p => officialSet.add(p.toUpperCase()));
-      (submissionData.attemptedProblems || []).forEach(p => officialSet.add(p.toUpperCase()));
-      Object.keys(userData.problemOverrides || {}).forEach(p => officialSet.add(p.toUpperCase()));
-
-      return Array.from(officialSet).sort((a, b) => 
-        a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' })
-      );
-    }
-
     let base = [];
     if (platform === 'leetcode') {
       base = ['Q1', 'Q2', 'Q3', 'Q4'];
@@ -111,8 +98,11 @@ export default function ContestCard({
     const attemptedList = submissionData.attemptedProblems || [];
     const problemOverrides = userData.problemOverrides || {};
 
-    // Collect all known problem indices from all sources
+    // Collect all known problem indices from all sources (official contest.problems, submissions, overrides)
     const knownSet = new Set();
+    if (contest.problems && Array.isArray(contest.problems)) {
+      contest.problems.forEach(p => p.index && knownSet.add(p.index.toUpperCase()));
+    }
     solvedList.forEach(p => knownSet.add(p.toUpperCase()));
     attemptedList.forEach(p => knownSet.add(p.toUpperCase()));
     Object.keys(problemOverrides).forEach(p => knownSet.add(p.toUpperCase()));
@@ -120,18 +110,10 @@ export default function ContestCard({
     // Ensure paired subproblems (if D1 exists, ensure D2 exists; if D2 exists, ensure D1)
     Array.from(knownSet).forEach(k => {
       const match1 = k.match(/^([A-Z])1$/);
-      if (match1) {
-        knownSet.add(`${match1[1]}2`);
-      }
+      if (match1) knownSet.add(`${match1[1]}2`);
       const match2 = k.match(/^([A-Z])2$/);
-      if (match2) {
-        knownSet.add(`${match2[1]}1`);
-      }
+      if (match2) knownSet.add(`${match2[1]}1`);
     });
-
-    if (knownSet.size === 0) {
-      return base;
-    }
 
     const result = [];
     const processedKnown = new Set();
@@ -155,15 +137,13 @@ export default function ContestCard({
           }
         });
         processedKnown.add(bUpper);
-      } else if (knownSet.has(bUpper)) {
-        result.push(bIdx);
-        processedKnown.add(bUpper);
       } else {
         result.push(bIdx);
+        processedKnown.add(bUpper);
       }
     });
 
-    // Append any extra known indices (e.g., G, H)
+    // Append any extra known indices (e.g., G, H, or extra problems from API)
     const leftover = Array.from(knownSet)
       .filter(k => !processedKnown.has(k))
       .sort((a, b) => a.localeCompare(b, undefined, { numeric: true, sensitivity: 'base' }));
@@ -350,6 +330,9 @@ export default function ContestCard({
             } else if (override === 'attempted') {
               isSolved = false;
               isAttempted = true;
+            } else if (override === 'tried' || override === 'hard') {
+              isSolved = false;
+              isAttempted = false;
             }
 
             const problemMeta = contest.problems?.find(p => p.index === idx);
@@ -369,23 +352,28 @@ export default function ContestCard({
               if (override === 'solved') {
                 badgeClass = "problem-badge problem-badge-solved font-mono";
                 tooltip = problemMeta 
-                  ? `${idx}: ${problemMeta.title}${problemMeta.rating ? ` (Rating: ${problemMeta.rating})` : ''} - Marked Solved`
+                  ? `${idx}: ${problemMeta.title} - Marked Solved`
                   : `Problem ${idx} (Marked Solved)`;
+              } else if (override === 'tried' || override === 'hard') {
+                badgeClass = "problem-badge problem-badge-tried font-mono";
+                tooltip = problemMeta 
+                  ? `${idx}: ${problemMeta.title} - Tried / Couldn't Solve`
+                  : `Problem ${idx} (Tried / Couldn't Solve)`;
               } else {
                 badgeClass = "problem-badge problem-badge-attempted font-mono";
                 tooltip = problemMeta 
-                  ? `${idx}: ${problemMeta.title}${problemMeta.rating ? ` (Rating: ${problemMeta.rating})` : ''} - Marked Attempted`
+                  ? `${idx}: ${problemMeta.title} - Marked Attempted`
                   : `Problem ${idx} (Marked Attempted)`;
               }
             } else if (isSolved) {
               badgeClass = "problem-badge problem-badge-solved font-mono";
               tooltip = problemMeta 
-                ? `${idx}: ${problemMeta.title}${problemMeta.rating ? ` (Rating: ${problemMeta.rating})` : ''} - Solved`
+                ? `${idx}: ${problemMeta.title} - Solved`
                 : `Problem ${idx} (Solved)`;
             } else if (isAttempted) {
               badgeClass = "problem-badge problem-badge-attempted font-mono";
               tooltip = problemMeta 
-                ? `${idx}: ${problemMeta.title}${problemMeta.rating ? ` (Rating: ${problemMeta.rating})` : ''} - Attempted`
+                ? `${idx}: ${problemMeta.title} - Attempted`
                 : `Problem ${idx} (Attempted)`;
             }
 
@@ -472,9 +460,7 @@ export default function ContestCard({
                 const currentOverride = problemOverrides[idx] || 'default'; // 'solved', 'attempted', or 'default'
                 
                 const problemMeta = contest.problems?.find(p => p.index === idx);
-                const problemText = problemMeta 
-                  ? `${idx}: ${problemMeta.title} ${problemMeta.rating ? `[★ ${problemMeta.rating}]` : ''}`
-                  : idx;
+                const problemText = idx;
 
                 return (
                   <div key={idx} style={platform === 'leetcode' ? { ...styles.overrideItem, justifyContent: 'space-between', width: '100%' } : styles.overrideItem}>
@@ -507,6 +493,19 @@ export default function ContestCard({
                         title="Solved (Green)"
                       >
                         AC
+                      </button>
+                      <button
+                        onClick={() => handleSelectOverride(idx, 'tried')}
+                        style={{
+                          ...styles.overridePillBtn,
+                          backgroundColor: (currentOverride === 'tried' || currentOverride === 'hard') ? '#fbbf24' : 'rgba(255,255,255,0.03)',
+                          color: (currentOverride === 'tried' || currentOverride === 'hard') ? '#000000' : 'var(--color-text-secondary)',
+                          border: (currentOverride === 'tried' || currentOverride === 'hard') ? '1px solid transparent' : '1px solid var(--border-color)',
+                          fontWeight: (currentOverride === 'tried' || currentOverride === 'hard') ? '600' : 'normal'
+                        }}
+                        title="Tried / Couldn't Solve (Yellow)"
+                      >
+                        Tried
                       </button>
                       <button
                         onClick={() => handleSelectOverride(idx, 'attempted')}
@@ -573,6 +572,20 @@ export default function ContestCard({
                 }}
               >
                 + Add AC
+              </button>
+              <button
+                type="button"
+                className="btn btn-sm"
+                style={{ backgroundColor: 'rgba(251, 191, 36, 0.15)', color: '#fbbf24', border: '1px solid rgba(251, 191, 36, 0.3)', padding: '4px 10px', fontSize: '0.78rem', fontWeight: '600' }}
+                onClick={() => {
+                  const clean = customProblem.trim().toUpperCase();
+                  if (clean) {
+                    handleSelectOverride(clean, 'tried');
+                    setCustomProblem('');
+                  }
+                }}
+              >
+                + Add Tried
               </button>
               <button
                 type="button"
